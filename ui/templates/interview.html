@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Preparation Platform - MAANG Mentor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 20px;
+            padding: 30px;
+            height: 70vh;
+        }
+
+        /* Sidebar - Interview Info */
+        .sidebar {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .section-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .info-item {
+            margin-bottom: 15px;
+        }
+
+        .info-label {
+            font-size: 0.9em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .countdown {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .countdown-number {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .countdown-label {
+            font-size: 0.8em;
+            opacity: 0.9;
+        }
+
+        /* Main Editor Area */
+        .editor-area {
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .editor-tabs {
+            display: flex;
+            background: #252526;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            color: #ccc;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+            flex: 1;
+            text-align: center;
+        }
+
+        .tab.active {
+            color: white;
+            background: #1e1e1e;
+            border-bottom-color: #667eea;
+        }
+
+        .tab:hover {
+            background: #2d2d30;
+        }
+
+        .editor-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .problem-description {
+            color: #d4d4d4;
+            font-size: 0.95em;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            background: #252526;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .code-editor {
+            flex: 1;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 5px;
+            padding: 10px;
+            color: #d4d4d4;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            resize: none;
+        }
+
+        .editor-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #3e3e42;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            flex: 1;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #3e3e42;
+            color: #d4d4d4;
+        }
+
+        .btn-secondary:hover {
+            background: #4e4e54;
+        }
+
+        /* Chat/AI Interviewer */
+        .chat-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 4px solid #667eea;
+            max-height: 70vh;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            background: white;
+            border-radius: 5px;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .message {
+            margin-bottom: 12px;
+            padding: 10px;
+            border-radius: 5px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            background: #e3f2fd;
+            margin-left: 20px;
+            border-left: 3px solid #667eea;
+        }
+
+        .message.ai {
+            background: #f3e5f5;
+            margin-right: 20px;
+            border-left: 3px solid #764ba2;
+        }
+
+        .message-sender {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .message-text {
+            color: #333;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        .chat-input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+        }
+
+        .test-results {
+            background: white;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+        }
+
+        .test-case {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        .test-case.passed {
+            border-left: 3px solid #4caf50;
+        }
+
+        .test-case.failed {
+            border-left: 3px solid #f44336;
+        }
+
+        .test-status {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+
+        .status-badge.passed {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .status-badge.failed {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .friday-interview-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .friday-interview-card .status {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .sidebar, .editor-area, .chat-panel {
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 Interview Preparation Platform</h1>
+            <p>Master coding, system design, and behavioral interviews</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Left Sidebar - Interview Info & Schedule -->
+            <div class="sidebar">
+                <div class="section-title">📋 Interview Info</div>
+                <div class="info-item">
+                    <div class="info-label">Mode</div>
+                    <select id="interviewMode" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ddd;">
+                        <option value="coding">💻 Coding</option>
+                        <option value="system_design">🏗️ System Design</option>
+                        <option value="behavioral">💬 Behavioral</option>
+                    </select>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">Difficulty</div>
+                    <select id="difficulty" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ddd;">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">Company</div>
+                    <select id="companyRole" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ddd;">
+                        <option value="google_sde">Google (SDE)</option>
+                        <option value="meta_e4">Meta (E4)</option>
+                        <option value="amazon_l5">Amazon (L5)</option>
+                        <option value="apple_ict3">Apple (ICT3)</option>
+                    </select>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">Time Limit</div>
+                    <div class="info-value">45 min</div>
+                </div>
+
+                <button id="startBtn" class="btn btn-primary" style="width: 100%; margin-top: 15px;">
+                    ▶️ Start Interview
+                </button>
+
+                <div class="section-title" style="margin-top: 30px;">🗓️ Friday 3 PM</div>
+                <div id="fridayInfo" class="friday-interview-card">
+                    <div class="status">⏳ Next Interview</div>
+                    <div id="countdownDisplay" class="countdown-number">Loading...</div>
+                </div>
+
+                <button id="scheduleBtn" class="btn btn-secondary" style="width: 100%; margin-top: 15px;">
+                    📅 Schedule Recurring
+                </button>
+            </div>
+
+            <!-- Center - Code Editor -->
+            <div class="editor-area">
+                <div class="editor-tabs">
+                    <div class="tab active" onclick="switchTab('problem')">📝 Problem</div>
+                    <div class="tab" onclick="switchTab('solution')">💻 Solution</div>
+                    <div class="tab" onclick="switchTab('tests')">✅ Test Results</div>
+                </div>
+
+                <div class="editor-content">
+                    <!-- Problem Tab -->
+                    <div id="problemTab">
+                        <div class="problem-description" id="problemDescription">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                Select a mode and click "Start Interview"
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Solution Tab -->
+                    <div id="solutionTab" style="display: none;">
+                        <textarea id="codeEditor" class="code-editor" placeholder="Write your solution here..."></textarea>
+                        <div class="editor-actions">
+                            <button id="submitBtn" class="btn btn-primary" onclick="submitCode()">
+                                ✈️ Submit Code
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearCode()">🗑️ Clear</button>
+                        </div>
+                    </div>
+
+                    <!-- Tests Tab -->
+                    <div id="testsTab" style="display: none;">
+                        <div id="testResults" class="test-results">
+                            <div class="loading">
+                                <p>No test results yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right - AI Interviewer Chat -->
+            <div class="chat-panel">
+                <div class="section-title">🤖 AI Interviewer</div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message ai">
+                        <div class="message-sender">AI Interviewer</div>
+                        <div class="message-text">
+                            👋 Hello! I'm your AI interviewer. Select an interview mode and click "Start" to begin. Good luck!
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <input 
+                        type="text" 
+                        class="chat-input" 
+                        id="chatInput" 
+                        placeholder="Ask a question or share your thoughts..."
+                        onkeypress="handleChatKeypress(event)"
+                    >
+                    <button class="btn btn-primary" onclick="sendMessage()" style="flex: 0 0 auto; width: auto;">
+                        Send
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        const API_BASE = '/api/interview';
+        let currentSessionId = null;
+        let socket = null;
+
+        // Initialize Socket.IO
+        function initSocket() {
+            socket = io();
+            socket.on('connect', () => {
+                console.log('Connected to interview server');
+                if (currentSessionId) {
+                    socket.emit('join_session', {
+                        session_id: currentSessionId,
+                        user_id: 'user_' + Date.now()
+                    });
+                }
+            });
+
+            socket.on('message', (data) => {
+                addChatMessage(data.speaker, data.message);
+            });
+
+            socket.on('submission_result', (data) => {
+                displayTestResults(data.validation);
+            });
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('[id$="Tab"]').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            document.getElementById(tabName + 'Tab').style.display = 'block';
+
+            document.querySelectorAll('.tab').forEach((tab, idx) => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        // Start interview session
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            const mode = document.getElementById('interviewMode').value;
+            const difficulty = document.getElementById('difficulty').value;
+            const company = document.getElementById('companyRole').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/session/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: 'user_' + Date.now(),
+                        mode: mode,
+                        difficulty: difficulty,
+                        company_role: company,
+                        problem_id: mode === 'coding' ? 'two-sum' : null
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    currentSessionId = data.session.session_id;
+
+                    // Join socket room
+                    if (socket) {
+                        socket.emit('join_session', {
+                            session_id: currentSessionId,
+                            user_id: 'user_' + Date.now()
+                        });
+                    }
+
+                    // Display problem
+                    if (data.problem) {
+                        displayProblem(data.problem);
+                    }
+
+                    addChatMessage('ai', `Great! We're starting a ${difficulty} ${mode} interview. Let me give you the problem...`);
+                }
+            } catch (error) {
+                console.error('Error starting interview:', error);
+            }
+        });
+
+        // Display problem
+        function displayProblem(problem) {
+            const desc = document.getElementById('problemDescription');
+            desc.innerHTML = `
+                <h3>${problem.title}</h3>
+                <p><strong>Difficulty:</strong> ${problem.difficulty}</p>
+                <p><strong>Topic:</strong> ${problem.topic}</p>
+                <p style="margin-top: 15px; white-space: pre-wrap; line-height: 1.6;">${problem.description}</p>
+                <div style="margin-top: 15px; padding: 10px; background: #252526; border-radius: 5px;">
+                    <strong>Test Cases:</strong>
+                    ${problem.test_cases.map((tc, idx) => `
+                        <div style="margin-top: 10px; font-size: 0.9em;">
+                            <strong>Test ${idx + 1}:</strong><br>
+                            Input: ${tc.input_data}<br>
+                            Expected: ${tc.expected_output}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Submit code
+        async function submitCode() {
+            const code = document.getElementById('codeEditor').value;
+            const language = 'python';
+
+            if (!currentSessionId || !code) {
+                alert('Please write some code first!');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/session/${currentSessionId}/submit-code`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: code,
+                        language: language,
+                        user_id: 'user_' + Date.now()
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    displayTestResults(data.validation);
+                    addChatMessage('ai', generateInterviewFeedback(data.validation));
+                }
+            } catch (error) {
+                console.error('Error submitting code:', error);
+            }
+        }
+
+        // Display test results
+        function displayTestResults(validation) {
+            const resultsDiv = document.getElementById('testResults');
+            const results = validation.details.test_results;
+
+            resultsDiv.innerHTML = `
+                <div style="margin-bottom: 15px;">
+                    <strong>Test Results: ${results.passed}/${results.total} Passed</strong>
+                    <div style="margin-top: 10px;">
+                        <div style="width: 100%; height: 20px; background: #e0e0e0; border-radius: 10px; overflow: hidden;">
+                            <div style="width: ${(results.passed/results.total)*100}%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></div>
+                        </div>
+                    </div>
+                </div>
+                ${results.test_results.map((tc, idx) => `
+                    <div class="test-case ${tc.passed ? 'passed' : 'failed'}">
+                        <div class="test-status">
+                            Test ${tc.test_case_id}:
+                            <span class="status-badge ${tc.passed ? 'passed' : 'failed'}">
+                                ${tc.passed ? '✓ PASSED' : '✗ FAILED'}
+                            </span>
+                        </div>
+                        <div style="color: #666; font-size: 0.8em;">
+                            Input: ${tc.input}<br>
+                            Expected: ${tc.expected}
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+
+            switchTab('tests');
+        }
+
+        // Generate feedback
+        function generateInterviewFeedback(validation) {
+            const metrics = validation.metrics;
+            if (!metrics.all_tests_passed) {
+                return "Good attempt! Your solution didn't pass all tests. Let me give you some hints... Consider edge cases and review your logic.";
+            }
+            return "Excellent! All tests passed! 🎉 Now, let's discuss time and space complexity...";
+        }
+
+        // Chat functionality
+        function addChatMessage(speaker, message) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${speaker === 'user' ? 'user' : 'ai'}`;
+            messageDiv.innerHTML = `
+                <div class="message-sender">${speaker === 'user' ? 'You' : 'AI Interviewer'}</div>
+                <div class="message-text">${message}</div>
+            `;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+
+            if (!message || !currentSessionId) return;
+
+            addChatMessage('user', message);
+
+            if (socket) {
+                socket.emit('send_message', {
+                    session_id: currentSessionId,
+                    user_id: 'user_' + Date.now(),
+                    message: message
+                });
+            }
+
+            input.value = '';
+        }
+
+        function handleChatKeypress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Clear code editor
+        function clearCode() {
+            document.getElementById('codeEditor').value = '';
+        }
+
+        // Update Friday countdown
+        async function updateFridayCountdown() {
+            try {
+                const response = await fetch(`${API_BASE}/schedule/friday-info`);
+                const data = await response.json();
+
+                const countdown = data.countdown_seconds;
+                const days = Math.floor(countdown / 86400);
+                const hours = Math.floor((countdown % 86400) / 3600);
+                const minutes = Math.floor((countdown % 3600) / 60);
+
+                document.getElementById('countdownDisplay').innerHTML = `
+                    ${days}d ${hours}h ${minutes}m
+                `;
+            } catch (error) {
+                console.error('Error updating countdown:', error);
+            }
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            initSocket();
+            updateFridayCountdown();
+            setInterval(updateFridayCountdown, 60000); // Update every minute
+        });
+    </script>
+</body>
+</html>

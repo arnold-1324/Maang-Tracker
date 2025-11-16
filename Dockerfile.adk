@@ -1,0 +1,19 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy agent and dependencies
+COPY maang_agent/ ./maang_agent/
+COPY mcp_server/ ./mcp_server/
+COPY memory/ ./memory/
+COPY .env .
+
+# Expose port
+EXPOSE 8000
+
+# Run ADK web server with 0.0.0.0 binding
+CMD ["adk", "web", "--port", "8000", "--host", "0.0.0.0"]

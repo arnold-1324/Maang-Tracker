@@ -1,0 +1,17 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt uvicorn
+
+# Copy MCP server code
+COPY mcp_server/ ./mcp_server/
+COPY memory/ ./memory/
+
+# Expose port
+EXPOSE 8765
+
+# Run MCP server with uvicorn
+CMD ["python", "-u", "mcp_server/server.py"]

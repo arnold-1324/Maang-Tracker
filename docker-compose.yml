@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # MCP Server - Exposes tools (GitHub, LeetCode, GeeksforGeeks)
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    container_name: maang-mcp-server
+    ports:
+      - "8765:8765"
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - MCP_PORT=8765
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./mcp_server:/app/mcp_server
+      - ./memory:/app/memory
+    networks:
+      - maang-network
+    restart: unless-stopped
+
+  # ADK Web UI - Agent builder and runner
+  adk-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.adk
+    container_name: maang-adk-web
+    ports:
+      - "8000:8000"
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./maang_agent:/app/maang_agent
+      - ./mcp_server:/app/mcp_server
+      - ./memory:/app/memory
+    networks:
+      - maang-network
+    depends_on:
+      - mcp-server
+    restart: unless-stopped
+
+  # Dashboard - Web UI for viewing weaknesses and roadmap
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: maang-dashboard
+    ports:
+      - "5100:5100"
+    environment:
+      - LEETCODE_USERNAME=${LEETCODE_USERNAME}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./ui:/app/ui
+      - ./memory:/app/memory
+      - ./tracker:/app/tracker
+      - ./roadmap:/app/roadmap
+      - ./analyzer:/app/analyzer
+    networks:
+      - maang-network
+    restart: unless-stopped
+
+  # SQLite Database - Shared volume
+  sqlite-db:
+    image: alpine:latest
+    container_name: maang-sqlite
+    volumes:
+      - ./memory:/data
+    networks:
+      - maang-network
+    command: sh -c "echo 'SQLite DB ready' && sleep infinity"
+
+networks:
+  maang-network:
+    driver: bridge
+
+volumes:
+  memory:
+    driver: local

@@ -1,0 +1,17 @@
+google-adk
+fastmcp
+mcp
+PyGithub
+requests
+beautifulsoup4
+python-dotenv
+flask
+flask-socketio
+python-socketio
+uvicorn
+openpyxl
+PyPDF2
+apscheduler
+langchain
+langchain-community
+python-dotenv
