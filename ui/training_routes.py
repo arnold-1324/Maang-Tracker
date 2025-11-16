@@ -3,6 +3,12 @@ Training Dashboard Routes
 Visualization of adaptive learning progress
 """
 
+import sys
+import os
+
+# Add parent directory to path so we can import sibling packages
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from flask import Blueprint, jsonify, request, render_template_string
 import json
 from training.adaptive_learning_agent import AdaptiveLearningAgent

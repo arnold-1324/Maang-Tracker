@@ -1,0 +1,46 @@
+# Environment files
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+pytest_cache/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# Logs / temp files
+*.log
+*.out
+*.tmp
+*.swp

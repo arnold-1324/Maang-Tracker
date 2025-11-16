@@ -200,9 +200,10 @@ class CodeCompiler:
             )
     
     def test_against_cases(self, code: str, language: str, 
-                          test_cases: List[Dict[str, str]]) -> Dict[str, Any]:
+                          test_cases: List[Dict[str, str]],
+                          custom_input: Optional[str] = None) -> Dict[str, Any]:
         """
-        Test code against multiple test cases
+        Test code against multiple test cases with optional custom input
         
         test_cases format:
         [
@@ -215,8 +216,20 @@ class CodeCompiler:
             "failed": 0,
             "total": len(test_cases),
             "test_results": [],
-            "total_execution_time_ms": 0
+            "total_execution_time_ms": 0,
+            "custom_test_result": None
         }
+        
+        # If custom input provided, test it first
+        if custom_input:
+            exec_result = self.compile_and_run(code, language, custom_input, stdin_input=True)
+            results["custom_test_result"] = {
+                "input": custom_input[:200],
+                "output": exec_result.output[:200] if exec_result.output else "(no output)",
+                "execution_time_ms": exec_result.execution_time_ms,
+                "success": exec_result.success,
+                "error": exec_result.error if not exec_result.success else ""
+            }
         
         for i, test_case in enumerate(test_cases):
             input_data = test_case.get("input", "")
@@ -244,6 +257,10 @@ class CodeCompiler:
                 results["passed"] += 1
             else:
                 results["failed"] += 1
+        
+        # Update passed/failed counts
+        results["passed_count"] = results["passed"]
+        results["total_count"] = results["total"]
         
         return results
     

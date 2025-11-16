@@ -18,20 +18,31 @@ init_db()
 
 # Try to register training blueprint if available
 try:
-    from training_routes import training_bp
+    from ui.training_routes import training_bp
     app.register_blueprint(training_bp)
-except (ImportError, ModuleNotFoundError):
+    print("✓ Training blueprint registered successfully")
+except Exception as e:
     # Training module not available, continue without it
-    pass
+    import traceback
+    print(f"⚠ Warning: Training routes not available: {e}")
+    traceback.print_exc()
 
 # Try to register interview blueprint if available
+socketio_instance = None
 try:
-    from interview_routes import interview_bp, init_socketio
+    from ui.interview_routes import interview_bp, init_socketio
     app.register_blueprint(interview_bp)
-    init_socketio(app)
-except (ImportError, ModuleNotFoundError):
+    print("✓ Interview blueprint registered successfully")
+    socketio_instance = init_socketio(app)
+    if socketio_instance:
+        print("✓ SocketIO initialized successfully")
+    else:
+        print("⚠ Warning: SocketIO initialization returned None")
+except Exception as e:
     # Interview module not available, continue without it
-    pass
+    import traceback
+    print(f"⚠ Warning: Interview routes not available: {e}")
+    traceback.print_exc()
 
 from tracker.tracker import snapshot_github, snapshot_leetcode
 from roadmap.generator import recommend as get_recommendations
@@ -196,6 +207,10 @@ MAIN_LAYOUT = """
 HOME_TEMPLATE = """
 <div class="section">
     <h2>Welcome to MAANG Interview Prep</h2>
+    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
+        <h3 style="margin-bottom: 10px;">🎯 Target: March 2026</h3>
+        <div style="font-size: 1.5em; font-weight: bold;" id="countdown-display">{{ days_remaining }} days remaining</div>
+    </div>
     <div class="grid">
         <div class="stats">
             <div class="number">{{ total_problems }}</div>
@@ -211,6 +226,20 @@ HOME_TEMPLATE = """
         </div>
     </div>
 </div>
+<script>
+    function updateCountdown() {
+        const targetDate = new Date('2026-03-15');
+        const now = new Date();
+        const diff = targetDate - now;
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        document.getElementById('countdown-display').textContent = 
+            days + ' days, ' + hours + ' hours, ' + minutes + ' minutes remaining';
+    }
+    updateCountdown();
+    setInterval(updateCountdown, 60000);
+</script>
 
 <div class="section">
     <h2>⚡ Quick Actions</h2>
@@ -428,31 +457,81 @@ WEAKNESS_TEMPLATE = """
 
 @app.route("/", methods=["GET"])
 def index():
+    from datetime import datetime, timedelta
     github = request.args.get("github") or os.getenv("GITHUB_USERNAME", "")
     leetcode = request.args.get("leetcode") or os.getenv("LEETCODE_USERNAME", "")
     weaknesses = get_weaknesses()
+    user_id = request.args.get("user_id", "default_user")
+    
+    # Calculate countdown to March 2026
+    target_date = datetime(2026, 3, 15)
+    now = datetime.now()
+    days_remaining = (target_date - now).days
+    
+    # Get progress data if available
+    try:
+        from maang_agent.memory_persistence import get_memory_manager
+        memory = get_memory_manager()
+        summary = memory.get_user_summary(user_id)
+        total_problems = summary.get('total_problems_solved', 0)
+        completed_problems = total_problems
+        success_rate = 78  # Could calculate from interview stats
+    except:
+        total_problems = 500
+        completed_problems = 125
+        success_rate = 78
     
     return render_template_string(
         MAIN_LAYOUT + HOME_TEMPLATE,
         github=github,
         leetcode=leetcode,
         weaknesses=weaknesses,
-        total_problems=500,
-        completed_problems=125,
-        success_rate=78
+        total_problems=total_problems,
+        completed_problems=completed_problems,
+        success_rate=success_rate,
+        days_remaining=days_remaining
     )
 
 @app.route("/interview", methods=["GET"])
 def interview():
+    """Interview page - use template file if available"""
+    from pathlib import Path
+    interview_template_path = Path(__file__).parent / "templates" / "interview.html"
+    if interview_template_path.exists():
+        with open(interview_template_path, 'r', encoding='utf-8') as f:
+            return f.read()
     return render_template_string(MAIN_LAYOUT + INTERVIEW_TEMPLATE)
 
 @app.route("/roadmap", methods=["GET"])
 def roadmap():
+    from pathlib import Path
+    roadmap_template_path = Path(__file__).parent / "templates" / "roadmap.html"
+    if roadmap_template_path.exists():
+        with open(roadmap_template_path, 'r', encoding='utf-8') as f:
+            return f.read()
     recommendations = get_recommendations()
     return render_template_string(
         MAIN_LAYOUT + ROADMAP_TEMPLATE,
         roadmap=recommendations
     )
+
+@app.route("/api/roadmap/visualization", methods=["GET"])
+def roadmap_visualization():
+    """API endpoint for roadmap visualization data"""
+    from roadmap.enhanced_generator import get_roadmap_generator
+    user_id = request.args.get('user_id', 'default_user')
+    
+    generator = get_roadmap_generator(user_id)
+    visualization = generator.visualize_progress()
+    progress_summary = generator._get_progress_summary()
+    
+    return jsonify({
+        'success': True,
+        'visualization': {
+            **visualization,
+            'progress_summary': progress_summary
+        }
+    })
 
 @app.route("/weakness", methods=["GET"])
 def weakness():
@@ -466,7 +545,15 @@ def weakness():
 
 @app.route("/training", methods=["GET"])
 def training():
-    html = """
+    """Training page - use blueprint route if available, otherwise fallback"""
+    # Check if training blueprint is registered
+    try:
+        # Try to redirect to training dashboard
+        from flask import redirect
+        return redirect('/training/dashboard')
+    except:
+        # Fallback to simple template
+        html = """
 <div class="section">
     <h2>🎓 Training Mode</h2>
     <p>Learn new concepts with guided lessons and practice problems</p>
@@ -474,22 +561,22 @@ def training():
         <div class="card">
             <h3>Arrays & Strings</h3>
             <p>Master fundamental data structures</p>
-            <button class="btn">Start Training</button>
+            <a href="/training/dashboard" class="btn">Start Training</a>
         </div>
         <div class="card">
             <h3>Dynamic Programming</h3>
             <p>Learn DP patterns and optimizations</p>
-            <button class="btn">Start Training</button>
+            <a href="/training/dashboard" class="btn">Start Training</a>
         </div>
         <div class="card">
             <h3>System Design</h3>
             <p>Design large-scale systems</p>
-            <button class="btn">Start Training</button>
+            <a href="/training/dashboard" class="btn">Start Training</a>
         </div>
     </div>
 </div>
 """
-    return render_template_string(MAIN_LAYOUT + html)
+        return render_template_string(MAIN_LAYOUT + html)
 
 @app.route("/sync", methods=["POST"])
 def sync():
@@ -511,6 +598,30 @@ def sync():
     
     return redirect(url_for("index", github=github_user, leetcode=leetcode_user))
 
+@app.route("/api/integration/progress", methods=["GET"])
+def unified_progress():
+    """Get unified progress across all modules"""
+    user_id = request.args.get('user_id', 'default_user')
+    try:
+        from integration.main_pipeline import get_pipeline
+        pipeline = get_pipeline(user_id)
+        progress = pipeline.get_unified_progress()
+        return jsonify({'success': True, 'progress': progress})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route("/api/integration/sync", methods=["POST"])
+def sync_modules():
+    """Force sync across all modules"""
+    user_id = request.json.get('user_id', 'default_user') if request.json else 'default_user'
+    try:
+        from integration.main_pipeline import get_pipeline
+        pipeline = get_pipeline(user_id)
+        result = pipeline.sync_all_modules()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
 @app.route("/analyze", methods=["POST"])
 def analyze():
     content = request.json
@@ -530,4 +641,8 @@ def analyze():
         return jsonify({"error": "Analyzer not available"}), 400
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5100, debug=True)
+    # Use SocketIO if available, otherwise use regular Flask app
+    if socketio_instance:
+        socketio_instance.run(app, host="0.0.0.0", port=5100, debug=True)
+    else:
+        app.run(host="0.0.0.0", port=5100, debug=True)

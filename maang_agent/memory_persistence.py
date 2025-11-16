@@ -6,9 +6,11 @@ Handles memory storage, conversation history, and topic tracking for MAANG Mento
 import json
 import sqlite3
 import os
+import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from pathlib import Path
+from collections import Counter
 
 class AgentMemoryManager:
     """Manages persistent memory for the MAANG Mentor AI agent"""
@@ -573,6 +575,267 @@ class AgentMemoryManager:
             'topics_covered': topics_covered,
             'interview_statistics': interview_stats
         }
+    
+    # ==================== RAG (Retrieval Augmented Generation) ====================
+    
+    def get_rag_context(
+        self,
+        user_id: str,
+        query: Optional[str] = None,
+        session_type: Optional[str] = None,
+        limit: int = 5
+    ) -> List[Dict]:
+        """
+        Retrieve relevant conversation context using semantic search
+        Uses TF-IDF-like approach for simple semantic matching
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Get all conversations for user
+        cursor.execute("""
+            SELECT id, message, role, metadata, timestamp
+            FROM conversation_history
+            WHERE user_id = ?
+            ORDER BY timestamp DESC
+            LIMIT 100
+        """, (user_id,))
+        
+        all_conversations = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        if not all_conversations:
+            return []
+        
+        # Filter by session type if provided
+        if session_type:
+            filtered = []
+            for conv in all_conversations:
+                metadata = json.loads(conv.get('metadata', '{}') or '{}')
+                if metadata.get('session_type') == session_type:
+                    filtered.append(conv)
+            all_conversations = filtered if filtered else all_conversations
+        
+        # If query provided, use semantic similarity
+        if query:
+            scored_conversations = []
+            query_words = set(self._tokenize(query.lower()))
+            
+            for conv in all_conversations:
+                message = conv.get('message', '').lower()
+                message_words = set(self._tokenize(message))
+                
+                # Calculate simple Jaccard similarity
+                if query_words and message_words:
+                    intersection = len(query_words & message_words)
+                    union = len(query_words | message_words)
+                    similarity = intersection / union if union > 0 else 0
+                else:
+                    similarity = 0
+                
+                scored_conversations.append((similarity, conv))
+            
+            # Sort by similarity and return top results
+            scored_conversations.sort(key=lambda x: x[0], reverse=True)
+            return [conv for _, conv in scored_conversations[:limit]]
+        
+        # If no query, return most recent relevant conversations
+        return all_conversations[:limit]
+    
+    def _tokenize(self, text: str) -> List[str]:
+        """Simple tokenization for semantic search"""
+        # Remove special characters and split
+        text = re.sub(r'[^\w\s]', ' ', text)
+        words = text.lower().split()
+        # Filter out very short words
+        return [w for w in words if len(w) > 2]
+    
+    def get_similar_conversations(
+        self,
+        user_id: str,
+        topic: str,
+        category: str,
+        limit: int = 3
+    ) -> List[Dict]:
+        """Get conversations related to a specific topic/category"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Search for conversations mentioning the topic
+        cursor.execute("""
+            SELECT id, message, role, metadata, timestamp
+            FROM conversation_history
+            WHERE user_id = ? AND (
+                message LIKE ? OR
+                metadata LIKE ?
+            )
+            ORDER BY timestamp DESC
+            LIMIT ?
+        """, (user_id, f'%{topic}%', f'%{category}%', limit))
+        
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    def get_adaptive_question_context(
+        self,
+        user_id: str,
+        difficulty: str,
+        category: str
+    ) -> Dict[str, Any]:
+        """Get context for adaptive question selection"""
+        # Get user's performance in this category
+        mastery = self.get_problem_mastery(user_id, category)
+        
+        # Get topic coverage
+        topics = self.get_topic_coverage(user_id, category)
+        
+        # Get recent conversations about this topic
+        similar_convos = []
+        for topic in topics[:3]:
+            similar_convos.extend(
+                self.get_similar_conversations(user_id, topic['topic'], category, limit=1)
+            )
+        
+        # Calculate difficulty adjustment
+        avg_mastery = sum(t.get('mastery_level', 1) for t in topics) / len(topics) if topics else 1
+        if avg_mastery >= 3:
+            suggested_difficulty = 'hard' if difficulty == 'medium' else 'medium'
+        elif avg_mastery <= 1:
+            suggested_difficulty = 'easy'
+        else:
+            suggested_difficulty = difficulty
+        
+        return {
+            'user_mastery': avg_mastery,
+            'suggested_difficulty': suggested_difficulty,
+            'topics_covered': [t['topic'] for t in topics],
+            'problems_solved': len(mastery),
+            'recent_context': similar_convos[:3]
+        }
+    
+    # ==================== Daily Task Management ====================
+    
+    def create_daily_tasks(
+        self,
+        user_id: str,
+        date: str,
+        tasks: List[Dict[str, Any]]
+    ):
+        """Create daily tasks for user"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Create daily_tasks table if not exists
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS daily_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                date DATE NOT NULL,
+                task_id TEXT NOT NULL,
+                task_type TEXT DEFAULT 'problem',
+                task_data JSON,
+                completed BOOLEAN DEFAULT FALSE,
+                mastery_verified BOOLEAN DEFAULT FALSE,
+                follow_up_questions_answered INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                completed_at DATETIME,
+                UNIQUE(user_id, date, task_id),
+                INDEX idx_user_date (user_id, date)
+            )
+        """)
+        
+        # Insert tasks
+        for task in tasks:
+            cursor.execute("""
+                INSERT INTO daily_tasks (user_id, date, task_id, task_type, task_data, completed)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, date, task_id) DO NOTHING
+            """, (
+                user_id,
+                date,
+                task.get('problem_id', ''),
+                'problem',
+                json.dumps(task),
+                False
+            ))
+        
+        conn.commit()
+        conn.close()
+    
+    def get_daily_tasks(self, user_id: str, date: str) -> List[Dict[str, Any]]:
+        """Get daily tasks for a specific date"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM daily_tasks
+            WHERE user_id = ? AND date = ?
+            ORDER BY created_at ASC
+        """, (user_id, date))
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        tasks = []
+        for row in rows:
+            task = dict(row)
+            task_data_str = task.get('task_data', '{}')
+            if isinstance(task_data_str, str):
+                try:
+                    task['task_data'] = json.loads(task_data_str)
+                except:
+                    task['task_data'] = {}
+            else:
+                task['task_data'] = task_data_str
+            tasks.append(task)
+        
+        return tasks
+    
+    def complete_daily_task(
+        self,
+        user_id: str,
+        date: str,
+        task_id: str,
+        mastery_verified: bool = False
+    ):
+        """Mark daily task as completed"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE daily_tasks
+            SET completed = TRUE,
+                mastery_verified = ?,
+                completed_at = CURRENT_TIMESTAMP
+            WHERE user_id = ? AND date = ? AND task_id = ?
+        """, (mastery_verified, user_id, date, task_id))
+        
+        conn.commit()
+        conn.close()
+    
+    def record_follow_up_answer(
+        self,
+        user_id: str,
+        date: str,
+        task_id: str
+    ):
+        """Record that user answered a follow-up question for mastery verification"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE daily_tasks
+            SET follow_up_questions_answered = follow_up_questions_answered + 1,
+                mastery_verified = CASE 
+                    WHEN follow_up_questions_answered >= 2 THEN TRUE
+                    ELSE mastery_verified
+                END
+            WHERE user_id = ? AND date = ? AND task_id = ?
+        """, (user_id, date, task_id))
+        
+        conn.commit()
+        conn.close()
 
 
 # Global instance

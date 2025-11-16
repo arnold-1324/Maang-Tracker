@@ -3,6 +3,12 @@ Enhanced Roadmap Generator with Binary Search Tree Visualization
 Interactive BST with progress tracking and adaptive learning path
 """
 
+import sys
+import os
+
+# Add parent directory to path so we can import sibling packages
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 from memory.db import get_weaknesses
@@ -31,7 +37,7 @@ class BSTNode:
             'category': self.category,
             'problems_count': self.problems_count,
             'solved': self.solved,
-            'progress': self.progress,
+            'progress': round(self.progress, 1),
             'left': self.left.to_dict() if self.left else None,
             'right': self.right.to_dict() if self.right else None
         }
@@ -149,6 +155,8 @@ class EnhancedRoadmapGenerator:
         self.memory_manager = get_memory_manager() if user_id else None
         self.bst = RoadmapBST()
         self._build_initial_bst()
+        if user_id:
+            self._sync_progress_with_memory()
     
     def _build_initial_bst(self):
         """Build initial BST from topic database"""
@@ -159,6 +167,52 @@ class EnhancedRoadmapGenerator:
                 category=metadata['category'],
                 problems_count=metadata['problems']
             )
+    
+    def _sync_progress_with_memory(self):
+        """Sync BST node progress with memory manager data"""
+        if not self.user_id or not self.memory_manager:
+            return
+        
+        # Get problem mastery data
+        mastery = self.memory_manager.get_problem_mastery(self.user_id)
+        topic_coverage = self.memory_manager.get_topic_coverage(self.user_id)
+        
+        # Create mapping of topics to solved problems
+        topic_to_solved = {}
+        for problem in mastery:
+            category = problem.get('category', '')
+            # Map category to topic
+            for topic, metadata in self.TOPIC_DATABASE.items():
+                if metadata['category'] == category:
+                    if topic not in topic_to_solved:
+                        topic_to_solved[topic] = 0
+                    topic_to_solved[topic] += 1
+        
+        # Update BST nodes with progress
+        for topic, node in self.bst.nodes.items():
+            # Update solved count
+            solved = topic_to_solved.get(topic, 0)
+            node.solved = solved
+            
+            # Calculate progress percentage
+            if node.problems_count > 0:
+                node.progress = min(100.0, (solved / node.problems_count) * 100)
+            
+            # Update from topic coverage if available
+            for topic_data in topic_coverage:
+                if topic_data['topic'] == topic:
+                    proficiency = topic_data.get('proficiency_level', 1)
+                    # Adjust progress based on proficiency
+                    if proficiency >= 3:
+                        node.progress = 100.0
+                    elif proficiency == 2:
+                        node.progress = max(node.progress, 50.0)
+                    break
+    
+    def sync_progress(self):
+        """Public method to sync progress (call after problem completions)"""
+        if self.user_id:
+            self._sync_progress_with_memory()
     
     def get_learning_roadmap(self, weeks: int = 12) -> Dict[str, Any]:
         """Generate personalized learning roadmap"""
@@ -241,7 +295,11 @@ class EnhancedRoadmapGenerator:
         }
     
     def visualize_progress(self) -> Dict[str, Any]:
-        """Get visualization data for progress display"""
+        """Get visualization data for progress display with updated progress"""
+        # Sync progress before visualization
+        if self.user_id:
+            self._sync_progress_with_memory()
+        
         category_stats = self.bst.to_visualization()['categories']
         
         by_difficulty = {
@@ -250,6 +308,8 @@ class EnhancedRoadmapGenerator:
             'Hard': []
         }
         
+        # Build node data with LeetCode/GFG URLs
+        nodes_data = []
         for node in self.bst.get_in_order():
             if node.difficulty <= 2:
                 difficulty = 'Easy'
@@ -258,21 +318,39 @@ class EnhancedRoadmapGenerator:
             else:
                 difficulty = 'Hard'
             
-            by_difficulty[difficulty].append({
+            node_data = {
                 'topic': node.topic,
-                'progress': node.progress,
+                'progress': round(node.progress, 1),
                 'solved': node.solved,
-                'total': node.problems_count
-            })
+                'total': node.problems_count,
+                'difficulty': difficulty,
+                'difficulty_score': node.difficulty,
+                'category': node.category,
+                'leetcode_url': f"https://leetcode.com/tag/{node.topic.lower().replace(' ', '-')}/",
+                'gfg_url': f"https://www.geeksforgeeks.org/{node.topic.lower().replace(' ', '-')}/"
+            }
+            
+            by_difficulty[difficulty].append(node_data)
+            nodes_data.append(node_data)
+        
+        # Calculate overall progress
+        total_problems = sum(node.problems_count for node in self.bst.nodes.values())
+        total_solved = sum(node.solved for node in self.bst.nodes.values())
+        overall_progress = (total_solved / total_problems * 100) if total_problems > 0 else 0
         
         return {
             'bst_tree': self.bst.to_visualization(),
             'category_progress': category_stats,
             'difficulty_distribution': by_difficulty,
+            'nodes_data': nodes_data,
+            'overall_progress': round(overall_progress, 1),
+            'total_solved': total_solved,
+            'total_problems': total_problems,
             'visualization_metadata': {
                 'chart_type': 'bst',
                 'color_scheme': 'progress-gradient',
-                'hover_shows': ['progress', 'solved_problems', 'difficulty']
+                'hover_shows': ['progress', 'solved_problems', 'difficulty'],
+                'click_redirects': True
             }
         }
 

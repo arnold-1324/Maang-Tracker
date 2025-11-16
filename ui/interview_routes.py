@@ -3,6 +3,12 @@ Interview Routes - Flask endpoints for interview platform
 Handles interview creation, management, and real-time chat
 """
 
+import sys
+import os
+
+# Add parent directory to path so we can import sibling packages
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from flask import Blueprint, request, jsonify, render_template
 from flask_socketio import emit, join_room, leave_room, SocketIO
 from datetime import datetime, timedelta
@@ -17,6 +23,7 @@ from interview.simulation_engine import (
 )
 from interview.compiler import CodeCompiler, InterviewCodeValidator
 from interview.scheduler import InterviewScheduler, InterviewStatus
+from interview.enhanced_manager import get_interview_manager
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -25,7 +32,7 @@ logger = logging.getLogger(__name__)
 # Create blueprint
 interview_bp = Blueprint('interview', __name__, url_prefix='/api/interview')
 
-# Global instances
+# Global instances (for backward compatibility)
 engine = InterviewSimulationEngine()
 compiler = CodeCompiler()
 validator = InterviewCodeValidator()
@@ -39,71 +46,88 @@ socketio = None
 def init_socketio(app):
     """Initialize SocketIO for real-time communication"""
     global socketio
-    socketio = SocketIO(app, cors_allowed_origins="*")
-    
-    @socketio.on('connect')
-    def handle_connect(data):
-        logger.info(f"Client connected: {request.sid}")
-        emit('response', {'data': 'Connected to interview server'})
-    
-    @socketio.on('join_session')
-    def on_join(data):
-        session_id = data.get('session_id')
-        user_id = data.get('user_id')
-        join_room(f"session_{session_id}")
-        logger.info(f"User {user_id} joined session {session_id}")
+    try:
+        socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
         
-        # Send current interview context
-        if session_id in active_sessions:
-            emit('session_context', active_sessions[session_id])
-    
-    @socketio.on('send_message')
-    def handle_message(data):
-        session_id = data.get('session_id')
-        user_id = data.get('user_id')
-        message = data.get('message')
+        @socketio.on('connect')
+        def handle_connect():
+            logger.info(f"Client connected: {request.sid}")
+            emit('response', {'data': 'Connected to interview server'})
         
-        if session_id in active_sessions:
-            # Store message
-            engine.add_chat_message(session_id, user_id, 'user', message)
+        @socketio.on('join_session')
+        def on_join(data):
+            session_id = data.get('session_id')
+            user_id = data.get('user_id')
+            join_room(f"session_{session_id}")
+            logger.info(f"User {user_id} joined session {session_id}")
             
-            # Broadcast to session room
-            emit('message', {
-                'speaker': 'user',
-                'message': message,
-                'timestamp': datetime.now().isoformat()
-            }, room=f"session_{session_id}")
-            
-            logger.info(f"Message from {user_id} in session {session_id}: {message[:50]}...")
-    
-    @socketio.on('code_submission')
-    def handle_code_submission(data):
-        session_id = data.get('session_id')
-        user_id = data.get('user_id')
-        code = data.get('code')
-        language = data.get('language', 'python')
+            # Send current interview context
+            try:
+                session_id_int = int(session_id)
+                if session_id_int in active_sessions:
+                    emit('session_context', active_sessions[session_id_int])
+            except (ValueError, KeyError):
+                pass
         
-        logger.info(f"Code submission from {user_id} in {language}")
+        @socketio.on('send_message')
+        def handle_message(data):
+            session_id = data.get('session_id')
+            user_id = data.get('user_id')
+            message = data.get('message')
+            
+            try:
+                session_id_int = int(session_id)
+                if session_id_int in active_sessions:
+                    # Store message
+                    engine.add_chat_message(session_id_int, user_id, 'user', message)
+                    
+                    # Broadcast to session room
+                    emit('message', {
+                        'speaker': 'user',
+                        'message': message,
+                        'timestamp': datetime.now().isoformat()
+                    }, room=f"session_{session_id}")
+                    
+                    logger.info(f"Message from {user_id} in session {session_id}: {message[:50]}...")
+            except (ValueError, KeyError) as e:
+                logger.error(f"Error handling message: {e}")
         
-        # Get problem details from session
-        if session_id in active_sessions:
-            session = active_sessions[session_id]
-            problem_id = session.get('problem_id')
+        @socketio.on('code_submission')
+        def handle_code_submission(data):
+            session_id = data.get('session_id')
+            user_id = data.get('user_id')
+            code = data.get('code')
+            language = data.get('language', 'python')
             
-            # Run tests
-            result = engine.submit_code(session_id, user_id, code, language, 
-                                       session.get('test_cases', []))
+            logger.info(f"Code submission from {user_id} in {language}")
             
-            # Broadcast results
-            emit('submission_result', {
-                'submission_id': result['submission_id'],
-                'validation': result['validation'],
-                'timestamp': result['timestamp']
-            }, room=f"session_{session_id}")
-    
-    @socketio.on('disconnect')
-    def handle_disconnect():
-        logger.info(f"Client disconnected: {request.sid}")
+            try:
+                session_id_int = int(session_id)
+                if session_id_int in active_sessions:
+                    session = active_sessions[session_id_int]
+                    problem_id = session.get('problem_id')
+                    
+                    # Run tests
+                    result = engine.submit_code(session_id_int, user_id, code, language, 
+                                               session.get('test_cases', []))
+                    
+                    # Broadcast results
+                    emit('submission_result', {
+                        'submission_id': result['submission_id'],
+                        'validation': result['validation'],
+                        'timestamp': result['timestamp']
+                    }, room=f"session_{session_id}")
+            except (ValueError, KeyError) as e:
+                logger.error(f"Error handling code submission: {e}")
+        
+        @socketio.on('disconnect')
+        def handle_disconnect():
+            logger.info(f"Client disconnected: {request.sid}")
+        
+        return socketio
+    except Exception as e:
+        logger.error(f"Error initializing SocketIO: {e}")
+        return None
 
 
 # REST Routes
@@ -182,33 +206,43 @@ def get_behavioral():
 
 @interview_bp.route('/session/create', methods=['POST'])
 def create_session():
-    """Create new interview session"""
+    """Create new interview session using enhanced manager"""
     try:
         data = request.json
-        user_id = data.get('user_id')
+        user_id = data.get('user_id', 'default_user')
         mode = data.get('mode', 'coding')  # coding, system_design, behavioral
         company_role = data.get('company_role', 'google_sde')
         problem_id = data.get('problem_id')
+        difficulty = data.get('difficulty', 'medium')
+        custom_input = data.get('custom_input')
         
-        # Create session
-        session_data = engine.create_session(
-            user_id=user_id,
-            mode=InterviewMode[mode.upper()],
-            company_role=CompanyRole[company_role.upper()],
-            problem_id=problem_id
-        )
+        # Use enhanced interview manager
+        interview_manager = get_interview_manager(user_id)
         
-        session_id = session_data['session_id']
+        if mode == 'coding':
+            result = interview_manager.start_coding_interview(
+                difficulty=difficulty,
+                company_role=company_role,
+                custom_input=custom_input
+            )
+            session_id = result['session_id']
+            problem = result['problem']
+        elif mode == 'system_design':
+            topic = data.get('topic', 'url_shortener')
+            result = interview_manager.start_system_design_interview(
+                topic=topic,
+                company_role=company_role
+            )
+            session_id = result['session_id']
+            problem = {'topic': result['topic'], 'requirements': result['requirements']}
+        elif mode == 'behavioral':
+            result = interview_manager.start_behavioral_interview(company_role=company_role)
+            session_id = result['session_id']
+            problem = {'question': result['question'], 'category': result['category']}
+        else:
+            return jsonify({'success': False, 'error': 'Invalid mode'}), 400
         
-        # Load problem if coding interview
-        problem = None
-        test_cases = []
-        if mode == 'coding' and problem_id:
-            problem = engine.get_coding_problem(problem_id)
-            if problem:
-                test_cases = problem.get('test_cases', [])
-        
-        # Store in active sessions
+        # Store in active sessions for backward compatibility
         active_sessions[session_id] = {
             'session_id': session_id,
             'user_id': user_id,
@@ -216,7 +250,7 @@ def create_session():
             'company_role': company_role,
             'problem_id': problem_id,
             'problem': problem,
-            'test_cases': test_cases,
+            'test_cases': problem.get('test_cases', []) if isinstance(problem, dict) else [],
             'started_at': datetime.now().isoformat(),
             'status': 'active'
         }
@@ -225,84 +259,117 @@ def create_session():
         
         return jsonify({
             'success': True,
-            'session': session_data,
+            'session': {'session_id': session_id, 'mode': mode},
             'problem': problem
         })
     except Exception as e:
         logger.error(f"Error creating session: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
-@interview_bp.route('/session/<int:session_id>', methods=['GET'])
+@interview_bp.route('/session/<session_id>', methods=['GET'])
 def get_session(session_id):
     """Get session details"""
     try:
-        if session_id not in active_sessions:
-            return jsonify({'success': False, 'error': 'Session not found'}), 404
+        # Try to get from active sessions first
+        session_id_int = None
+        try:
+            session_id_int = int(session_id)
+            if session_id_int in active_sessions:
+                session = active_sessions[session_id_int]
+                chat_history = engine.get_chat_history(session_id_int)
+                return jsonify({
+                    'success': True,
+                    'session': session,
+                    'chat_history': chat_history
+                })
+        except (ValueError, KeyError):
+            pass
         
-        session = active_sessions[session_id]
-        chat_history = engine.get_chat_history(session_id)
+        # Try enhanced manager
+        user_id = request.args.get('user_id', 'default_user')
+        interview_manager = get_interview_manager(user_id)
+        
+        # Get conversation history from memory
+        from maang_agent.memory_persistence import get_memory_manager
+        memory = get_memory_manager()
+        chat_history = memory.get_conversation_history(user_id, session_id, limit=50)
         
         return jsonify({
             'success': True,
-            'session': session,
+            'session': {'session_id': session_id, 'user_id': user_id},
             'chat_history': chat_history
         })
     except Exception as e:
         logger.error(f"Error fetching session: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
-@interview_bp.route('/session/<int:session_id>/submit-code', methods=['POST'])
+@interview_bp.route('/session/<session_id>/submit-code', methods=['POST'])
 def submit_code(session_id):
-    """Submit code for validation"""
+    """Submit code for validation using enhanced manager"""
     try:
-        if session_id not in active_sessions:
-            return jsonify({'success': False, 'error': 'Session not found'}), 404
-        
         data = request.json
         code = data.get('code')
         language = data.get('language', 'python')
-        user_id = data.get('user_id')
+        user_id = data.get('user_id', 'default_user')
+        custom_input = data.get('custom_input')
         
-        session = active_sessions[session_id]
-        test_cases = session.get('test_cases', [])
-        problem_id = session.get('problem_id')
+        # Use enhanced interview manager
+        interview_manager = get_interview_manager(user_id)
         
-        # Validate solution
-        validation = validator.validate_solution(code, language, problem_id, test_cases)
+        # Submit code
+        result = interview_manager.submit_code(
+            session_id=session_id,
+            code=code,
+            language=language,
+            custom_input=custom_input
+        )
         
-        # Submit to engine
-        result = engine.submit_code(session_id, user_id, code, language, test_cases)
-        
-        logger.info(f"Code submission in session {session_id}: {validation['metrics']['all_tests_passed']}")
+        logger.info(f"Code submission in session {session_id}: {result.get('success', False)}")
         
         return jsonify({
-            'success': True,
+            'success': result.get('success', False),
             'submission': result,
-            'validation': validation
+            'validation': {
+                'metrics': {
+                    'all_tests_passed': result.get('test_results', {}).get('passed_count', 0) == result.get('test_results', {}).get('total_count', 0)
+                },
+                'test_results': result.get('test_results', {}),
+                'complexity_analysis': result.get('complexity_analysis', {}),
+                'ai_feedback': result.get('ai_feedback', {})
+            }
         })
     except Exception as e:
         logger.error(f"Error submitting code: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
-@interview_bp.route('/session/<int:session_id>/end', methods=['POST'])
+@interview_bp.route('/session/<session_id>/end', methods=['POST'])
 def end_session(session_id):
     """End interview session"""
     try:
-        if session_id not in active_sessions:
-            return jsonify({'success': False, 'error': 'Session not found'}), 404
-        
-        data = request.json
+        data = request.json or {}
+        user_id = data.get('user_id', 'default_user')
         score = data.get('score', 0.0)
         feedback = data.get('feedback', '')
         
-        # End session in engine
-        result = engine.end_session(session_id, score, feedback)
+        # Use enhanced manager
+        interview_manager = get_interview_manager(user_id)
+        result = interview_manager.end_session(session_id)
         
-        # Remove from active sessions
-        active_sessions.pop(session_id, None)
+        # Remove from active sessions if exists
+        try:
+            session_id_int = int(session_id)
+            active_sessions.pop(session_id_int, None)
+        except (ValueError, KeyError):
+            pass
         
         logger.info(f"Ended session {session_id} with score {score}")
         
@@ -312,6 +379,8 @@ def end_session(session_id):
         })
     except Exception as e:
         logger.error(f"Error ending session: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
