@@ -1,4 +1,10 @@
 import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv('.env.local')
+load_dotenv()
+
 import requests
 from bs4 import BeautifulSoup
 from github import Github

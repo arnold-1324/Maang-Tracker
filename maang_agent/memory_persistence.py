@@ -33,11 +33,11 @@ class AgentMemoryManager:
                 role TEXT NOT NULL,
                 message TEXT NOT NULL,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                metadata JSON,
-                INDEX idx_user_session (user_id, session_id),
-                INDEX idx_timestamp (timestamp)
+                metadata JSON
             )
         """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_session ON conversation_history(user_id, session_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON conversation_history(timestamp)")
         
         # Topic coverage tracking
         cursor.execute("""
@@ -52,10 +52,10 @@ class AgentMemoryManager:
                 last_reviewed DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, topic, category),
-                INDEX idx_user_category (user_id, category)
+                UNIQUE(user_id, topic, category)
             )
         """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_category_topic ON topic_coverage(user_id, category)")
         
         # Performance metrics and progress
         cursor.execute("""
@@ -72,10 +72,10 @@ class AgentMemoryManager:
                 behavioral_sessions INTEGER DEFAULT 0,
                 avg_score REAL DEFAULT 0.0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, date),
-                INDEX idx_user_date (user_id, date)
+                UNIQUE(user_id, date)
             )
         """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_date_analytics ON progress_analytics(user_id, date)")
         
         # Learning path and recommendations
         cursor.execute("""
@@ -92,10 +92,10 @@ class AgentMemoryManager:
                 end_date DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, week_number),
-                INDEX idx_user_week (user_id, week_number)
+                UNIQUE(user_id, week_number)
             )
         """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_week ON learning_path(user_id, week_number)")
         
         # Session context and performance
         cursor.execute("""
@@ -114,11 +114,11 @@ class AgentMemoryManager:
                 strengths JSON,
                 weaknesses JSON,
                 recommendations JSON,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_user_interview (user_id, interview_id),
-                INDEX idx_user_mode (user_id, mode)
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_interview ON interview_context(user_id, interview_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_mode ON interview_context(user_id, mode)")
         
         # Mastery tracking for problems
         cursor.execute("""
@@ -136,10 +136,10 @@ class AgentMemoryManager:
                 follow_up_questions_answered INTEGER DEFAULT 0,
                 verified_date DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, problem_id),
-                INDEX idx_user_category (user_id, category)
+                UNIQUE(user_id, problem_id)
             )
         """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_category_mastery ON problem_mastery(user_id, category)")
         
         conn.commit()
         conn.close()
@@ -740,10 +740,10 @@ class AgentMemoryManager:
                 follow_up_questions_answered INTEGER DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 completed_at DATETIME,
-                UNIQUE(user_id, date, task_id),
-                INDEX idx_user_date (user_id, date)
+                UNIQUE(user_id, date, task_id)
             )
         """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_date_tasks ON daily_tasks(user_id, date)")
         
         # Insert tasks
         for task in tasks:

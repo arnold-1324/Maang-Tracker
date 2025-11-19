@@ -59,6 +59,12 @@ class CodeCompiler:
             "compile_command": ["gcc", "-o", "{output}", "{file}"],
             "run_command": ["{output}"],
             "timeout": 30
+        },
+        "csharp": {
+            "extension": ".cs",
+            "compile_command": ["csc", "/out:{output}.exe", "{file}"],
+            "run_command": ["{output}.exe"],
+            "timeout": 30
         }
     }
     
