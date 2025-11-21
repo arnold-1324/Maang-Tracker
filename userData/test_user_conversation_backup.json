@@ -1,0 +1,146 @@
+[
+  {
+    "id": 36,
+    "user_id": "test_user",
+    "session_id": "session_1763557436",
+    "role": "system",
+    "message": "Session started: chat",
+    "timestamp": "2025-11-19 13:03:56",
+    "metadata": "{\"session_type\": \"chat\", \"context\": {}, \"rag_context\": [], \"timestamp\": \"2025-11-19T18:33:56.139299\"}"
+  },
+  {
+    "id": 37,
+    "user_id": "test_user",
+    "session_id": "session_1763557436",
+    "role": "user",
+    "message": "What is dynamic programming?",
+    "timestamp": "2025-11-19 13:03:56",
+    "metadata": "{}"
+  },
+  {
+    "id": 38,
+    "user_id": "test_user",
+    "session_id": "session_1763557436",
+    "role": "assistant",
+    "message": "DP problems can be tricky! Start by: 1) Identifying the recurrence relation, 2) Defining your state, 3) Choosing between top-down (memoization) or bottom-up (tabulation). What problem are you working on?",
+    "timestamp": "2025-11-19 13:03:56",
+    "metadata": "{\"rag_used\": true}"
+  },
+  {
+    "id": 42,
+    "user_id": "test_user",
+    "session_id": "session_1763557521",
+    "role": "system",
+    "message": "Session started: chat",
+    "timestamp": "2025-11-19 13:05:21",
+    "metadata": "{\"session_type\": \"chat\", \"context\": {}, \"rag_context\": [{\"id\": 36, \"message\": \"Session started: chat\", \"role\": \"system\", \"metadata\": \"{\\\"session_type\\\": \\\"chat\\\", \\\"context\\\": {}, \\\"rag_context\\\": [], \\\"timestamp\\\": \\\"2025-11-19T18:33:56.139299\\\"}\", \"timestamp\": \"2025-11-19 13:03:56\"}], \"timestamp\": \"2025-11-19T18:35:21.007950\"}"
+  },
+  {
+    "id": 43,
+    "user_id": "test_user",
+    "session_id": "session_1763557521",
+    "role": "user",
+    "message": "What is dynamic programming?",
+    "timestamp": "2025-11-19 13:05:21",
+    "metadata": "{}"
+  },
+  {
+    "id": 44,
+    "user_id": "test_user",
+    "session_id": "session_1763557521",
+    "role": "assistant",
+    "message": "DP problems can be tricky! Start by: 1) Identifying the recurrence relation, 2) Defining your state, 3) Choosing between top-down (memoization) or bottom-up (tabulation). What problem are you working on?",
+    "timestamp": "2025-11-19 13:05:21",
+    "metadata": "{\"rag_used\": true}"
+  },
+  {
+    "id": 45,
+    "user_id": "test_user",
+    "session_id": "session_1763557521",
+    "role": "user",
+    "message": "Help me solve Two Sum problem",
+    "timestamp": "2025-11-19 13:05:23",
+    "metadata": "{}"
+  },
+  {
+    "id": 46,
+    "user_id": "test_user",
+    "session_id": "session_1763557521",
+    "role": "assistant",
+    "message": "No worries! Let's break this down step by step. What specific part is challenging you?",
+    "timestamp": "2025-11-19 13:05:23",
+    "metadata": "{\"rag_used\": true}"
+  },
+  {
+    "id": 47,
+    "user_id": "test_user",
+    "session_id": "session_1763557521",
+    "role": "user",
+    "message": "Explain time complexity",
+    "timestamp": "2025-11-19 13:05:25",
+    "metadata": "{}"
+  },
+  {
+    "id": 48,
+    "user_id": "test_user",
+    "session_id": "session_1763557521",
+    "role": "assistant",
+    "message": "No worries! Let's break this down step by step. What specific part is challenging you?",
+    "timestamp": "2025-11-19 13:05:25",
+    "metadata": "{\"rag_used\": true}"
+  },
+  {
+    "id": 49,
+    "user_id": "test_user",
+    "session_id": "session_1763557521",
+    "role": "user",
+    "message": "How do I design a URL shortener?",
+    "timestamp": "2025-11-19 13:05:27",
+    "metadata": "{}"
+  },
+  {
+    "id": 50,
+    "user_id": "test_user",
+    "session_id": "session_1763557521",
+    "role": "assistant",
+    "message": "No worries! Let's break this down step by step. What specific part is challenging you?",
+    "timestamp": "2025-11-19 13:05:27",
+    "metadata": "{\"rag_used\": true}"
+  },
+  {
+    "id": 51,
+    "user_id": "test_user",
+    "session_id": "session_1763557521",
+    "role": "user",
+    "message": "I'm struggling with graphs",
+    "timestamp": "2025-11-19 13:05:33",
+    "metadata": "{}"
+  },
+  {
+    "id": 52,
+    "user_id": "test_user",
+    "session_id": "session_1763557521",
+    "role": "assistant",
+    "message": "No worries! Let's break this down step by step. What specific part is challenging you?",
+    "timestamp": "2025-11-19 13:05:33",
+    "metadata": "{\"rag_used\": true}"
+  },
+  {
+    "id": 53,
+    "user_id": "test_user",
+    "session_id": "session_1763557521",
+    "role": "user",
+    "message": "What should I practice first?",
+    "timestamp": "2025-11-19 13:05:35",
+    "metadata": "{}"
+  },
+  {
+    "id": 54,
+    "user_id": "test_user",
+    "session_id": "session_1763557521",
+    "role": "assistant",
+    "message": "No worries! Let's break this down step by step. What specific part is challenging you?",
+    "timestamp": "2025-11-19 13:05:35",
+    "metadata": "{\"rag_used\": true}"
+  }
+]

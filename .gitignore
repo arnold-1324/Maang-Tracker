@@ -1,7 +1,7 @@
-# Environment files
+# Environment files - NEVER commit these!
 .env
-# .env.*
-!.env.local
+.env.*
+.env.local
 
 # Python cache
 __pycache__/

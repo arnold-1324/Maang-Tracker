@@ -1,16 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import CodeEditor from '@/components/CodeEditor';
-import ChatInterface from '@/components/ChatInterface';
+import DraggableChat, { DraggableChatRef } from '@/components/DraggableChat';
 import Whiteboard from '@/components/Whiteboard';
-import { Code2, PenTool, MessageSquare, Building2, ChevronDown, Clock, LogOut } from 'lucide-react';
+import AlgoVisualizer from '@/components/AlgoVisualizer';
+import { Code2, PenTool, MessageSquare, Building2, ChevronDown, Clock, LogOut, Brain } from 'lucide-react';
 
 export default function InterviewPage() {
-    const [activeView, setActiveView] = useState<'code' | 'whiteboard'>('code');
+    const [activeView, setActiveView] = useState<'code' | 'whiteboard' | 'visualizer'>('code');
     const [company, setCompany] = useState('Google');
     const [role, setRole] = useState('Software Engineer (L4)');
     const [language, setLanguage] = useState('python');
+    const [traceData, setTraceData] = useState<any[]>([]);
+    const chatRef = useRef<DraggableChatRef>(null);
 
     const languages = [
         { id: 'python', name: 'Python 3' },
@@ -22,12 +25,47 @@ export default function InterviewPage() {
 
     const getInitialCode = (lang: string) => {
         switch (lang) {
-            case 'python': return `class Solution:\n    def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:\n        # Write your solution here\n        pass`;
-            case 'java': return `class Solution {\n    public ListNode mergeKLists(ListNode[] lists) {\n        // Write your solution here\n        return null;\n    }\n}`;
-            case 'cpp': return `class Solution {\npublic:\n    ListNode* mergeKLists(vector<ListNode*>& lists) {\n        // Write your solution here\n        return nullptr;\n    }\n};`;
-            case 'csharp': return `public class Solution {\n    public ListNode MergeKLists(ListNode[] lists) {\n        // Write your solution here\n        return null;\n    }\n}`;
-            case 'javascript': return `/**\n * @param {ListNode[]} lists\n * @return {ListNode}\n */\nvar mergeKLists = function(lists) {\n    // Write your solution here\n};`;
+            case 'python': return `class ListNode:\n    def __init__(self, val=0, next=None):\n        self.val = val\n        self.next = next\n\nclass Solution:\n    def reverseKGroup(self, head: Optional[ListNode], k: int) -> Optional[ListNode]:\n        # Write your solution here\n        pass\n\n# Driver code for visualization\n# Create list: 1 -> 2 -> 3 -> 4 -> 5\nhead = ListNode(1, ListNode(2, ListNode(3, ListNode(4, ListNode(5)))))\nk = 2\nsol = Solution()\nnew_head = sol.reverseKGroup(head, k)`;
+            case 'java': return `class Solution {\n    public ListNode reverseKGroup(ListNode head, int k) {\n        // Write your solution here\n        return null;\n    }\n}`;
+            case 'cpp': return `class Solution {\npublic:\n    ListNode* reverseKGroup(ListNode* head, int k) {\n        // Write your solution here\n        return nullptr;\n    }\n};`;
+            case 'csharp': return `public class Solution {\n    public ListNode ReverseKGroup(ListNode head, int k) {\n        // Write your solution here\n        return null;\n    }\n}`;
+            case 'javascript': return `/**\n * @param {ListNode} head\n * @param {number} k\n * @return {ListNode}\n */\nvar reverseKGroup = function(head, k) {\n    // Write your solution here\n};`;
             default: return '';
+        }
+    };
+
+    const handleVisualize = async (code: string) => {
+        setActiveView('visualizer');
+        try {
+            const res = await fetch('/api/compiler/trace', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code, input: "" })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setTraceData(data.trace);
+            } else {
+                alert('Visualization failed: ' + data.error);
+            }
+        } catch (e) {
+            alert('Network error: ' + e);
+        }
+    };
+
+    const handleExplainStep = (step: any) => {
+        if (chatRef.current) {
+            const prompt = `Explain what is happening at line ${step.line} in this code execution step.
+            
+            Variables:
+            ${JSON.stringify(step.variables, null, 2)}
+            
+            Function: ${step.func}
+            Event: ${step.event}
+            
+            Explain simply like I'm learning algorithms.`;
+
+            chatRef.current.sendMessage(prompt);
         }
     };
 
@@ -99,20 +137,22 @@ export default function InterviewPage() {
                 <div className="w-1/4 min-w-[320px] bg-slate-900 border-r border-slate-800 flex flex-col">
                     <div className="p-6 border-b border-slate-800">
                         <div className="flex justify-between items-start mb-4">
-                            <h2 className="font-bold text-white text-xl leading-tight">Merge k Sorted Lists</h2>
+                            <h2 className="font-bold text-white text-xl leading-tight">Reverse Nodes in k-Group</h2>
                         </div>
                         <div className="flex flex-wrap gap-2 mb-6">
                             <span className="px-2.5 py-1 bg-red-500/10 text-red-400 text-xs font-medium rounded-full border border-red-500/20">Hard</span>
                             <span className="px-2.5 py-1 bg-slate-800 text-slate-300 text-xs font-medium rounded-full border border-slate-700">Linked List</span>
-                            <span className="px-2.5 py-1 bg-slate-800 text-slate-300 text-xs font-medium rounded-full border border-slate-700">Heap</span>
-                            <span className="px-2.5 py-1 bg-slate-800 text-slate-300 text-xs font-medium rounded-full border border-slate-700">Divide & Conquer</span>
+                            <span className="px-2.5 py-1 bg-slate-800 text-slate-300 text-xs font-medium rounded-full border border-slate-700">Recursion</span>
                         </div>
                         <div className="prose prose-invert prose-sm max-w-none">
                             <p className="text-slate-300 leading-relaxed">
-                                You are given an array of k linked-lists lists, each linked-list is sorted in ascending order.
+                                Given the head of a singly linked list containing integers, reverse the nodes of the list in groups of k and return the head of the modified list.
                             </p>
                             <p className="text-slate-300 leading-relaxed mt-2">
-                                Merge all the linked-lists into one sorted linked-list and return it.
+                                If the number of nodes is not a multiple of k, then the remaining nodes at the end should be kept as is and not reversed.
+                            </p>
+                            <p className="text-slate-300 leading-relaxed mt-2">
+                                Do not change the values of the nodes, only change the links between nodes.
                             </p>
                         </div>
                     </div>
@@ -120,18 +160,27 @@ export default function InterviewPage() {
                         <div className="mb-6">
                             <h3 className="text-sm font-bold text-slate-200 mb-3">Example 1:</h3>
                             <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-xs text-slate-300 leading-relaxed">
-                                <span className="text-indigo-400">Input:</span> lists = [[1,4,5],[1,3,4],[2,6]]<br />
-                                <span className="text-emerald-400">Output:</span> [1,1,2,3,4,4,5,6]
+                                <span className="text-indigo-400">Input:</span> head = [1,2,3,4,5], k = 2<br />
+                                <span className="text-emerald-400">Output:</span> [2,1,4,3,5]<br />
+                                <span className="text-slate-500 block mt-1">// Groups 1-&gt;2 and 3-&gt;4 reversed. 5 remains.</span>
+                            </div>
+                        </div>
+
+                        <div className="mb-6">
+                            <h3 className="text-sm font-bold text-slate-200 mb-3">Example 2:</h3>
+                            <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-xs text-slate-300 leading-relaxed">
+                                <span className="text-indigo-400">Input:</span> head = [1,2,3,4,5], k = 3<br />
+                                <span className="text-emerald-400">Output:</span> [3,2,1,4,5]<br />
+                                <span className="text-slate-500 block mt-1">// Group 1-&gt;2-&gt;3 reversed. 4-&gt;5 remains.</span>
                             </div>
                         </div>
 
                         <div>
                             <h3 className="text-sm font-bold text-slate-200 mb-3">Constraints:</h3>
                             <ul className="space-y-2 text-xs text-slate-400 font-mono bg-slate-800/30 p-4 rounded-lg border border-slate-800/50">
-                                <li className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-indigo-500"></div>k == lists.length</li>
-                                <li className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-indigo-500"></div>0 &lt;= k &lt;= 10^4</li>
-                                <li className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-indigo-500"></div>0 &lt;= lists[i].length &lt;= 500</li>
-                                <li className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-indigo-500"></div>-10^4 &lt;= lists[i][j] &lt;= 10^4</li>
+                                <li className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-indigo-500"></div>k &lt;= n &lt;= 5000</li>
+                                <li className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-indigo-500"></div>1 &lt;= k &lt;= n</li>
+                                <li className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-indigo-500"></div>0 &lt;= Node.val &lt;= 1000</li>
                             </ul>
                         </div>
                     </div>
@@ -153,6 +202,12 @@ export default function InterviewPage() {
                                 className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-all border-b-2 ${activeView === 'whiteboard' ? 'text-white border-indigo-500 bg-slate-800/30' : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-slate-800/20'}`}
                             >
                                 <PenTool size={16} /> Whiteboard
+                            </button>
+                            <button
+                                onClick={() => setActiveView('visualizer')}
+                                className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-all border-b-2 ${activeView === 'visualizer' ? 'text-white border-indigo-500 bg-slate-800/30' : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-slate-800/20'}`}
+                            >
+                                <Brain size={16} /> Visualizer
                             </button>
                         </div>
 
@@ -178,29 +233,21 @@ export default function InterviewPage() {
                                 language={language}
                                 problemId="merge-k-sorted-lists"
                                 initialCode={getInitialCode(language)}
+                                onVisualize={handleVisualize}
                             />
-                        ) : (
+                        ) : activeView === 'whiteboard' ? (
                             <Whiteboard />
+                        ) : (
+                            <AlgoVisualizer
+                                trace={traceData}
+                                onStepChange={(line) => { }}
+                                onExplainStep={handleExplainStep}
+                            />
                         )}
                     </div>
                 </div>
-
-                {/* Right Panel: AI Mentor */}
-                <div className="w-[380px] border-l border-slate-800 bg-slate-900 flex flex-col shadow-xl z-10">
-                    <div className="p-4 border-b border-slate-800 bg-slate-900 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                            <MessageSquare size={18} />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-sm text-white">AI Interviewer</h3>
-                            <p className="text-xs text-slate-500">Always here to help</p>
-                        </div>
-                    </div>
-                    <div className="flex-1 overflow-hidden">
-                        <ChatInterface />
-                    </div>
-                </div>
             </div>
+            <DraggableChat ref={chatRef} />
         </div>
     );
 }

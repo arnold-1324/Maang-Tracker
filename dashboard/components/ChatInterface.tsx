@@ -10,7 +10,15 @@ interface Message {
     timestamp: Date;
 }
 
-export default function ChatInterface() {
+export interface ChatInterfaceRef {
+    sendMessage: (text: string) => void;
+}
+
+interface ChatInterfaceProps {
+    className?: string;
+}
+
+const ChatInterface = React.forwardRef<ChatInterfaceRef, ChatInterfaceProps>((props, ref) => {
     const [messages, setMessages] = useState<Message[]>([
         {
             id: '1',
@@ -31,18 +39,19 @@ export default function ChatInterface() {
         scrollToBottom();
     }, [messages]);
 
-    const sendMessage = async () => {
-        if (!input.trim()) return;
+    const sendMessage = async (text?: string) => {
+        const contentToSend = text || input;
+        if (!contentToSend.trim()) return;
 
         const userMsg: Message = {
             id: Date.now().toString(),
             role: 'user',
-            content: input,
+            content: contentToSend,
             timestamp: new Date()
         };
 
         setMessages(prev => [...prev, userMsg]);
-        setInput('');
+        if (!text) setInput(''); // Only clear input if sent from input field
         setIsLoading(true);
 
         try {
@@ -51,7 +60,7 @@ export default function ChatInterface() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message: userMsg.content,
-                    user_id: 'default_user' // In a real app, this would come from auth
+                    user_id: 'default_user'
                 })
             });
 
@@ -78,6 +87,10 @@ export default function ChatInterface() {
         }
     };
 
+    React.useImperativeHandle(ref, () => ({
+        sendMessage: (text: string) => sendMessage(text)
+    }));
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -86,11 +99,7 @@ export default function ChatInterface() {
     };
 
     return (
-        <div className="flex flex-col h-[600px] bg-white/10 backdrop-blur-md rounded-xl border border-white/20 shadow-xl overflow-hidden">
-            <div className="p-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center gap-2">
-                <Bot className="w-6 h-6" />
-                <h2 className="font-bold text-lg">AI Mentor Chat</h2>
-            </div>
+        <div className={`flex flex-col h-full bg-slate-900 ${props.className || ''}`}>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-indigo-500/30">
                 {messages.map((msg) => (
@@ -140,7 +149,7 @@ export default function ChatInterface() {
                         disabled={isLoading}
                     />
                     <button
-                        onClick={sendMessage}
+                        onClick={() => sendMessage()}
                         disabled={isLoading || !input.trim()}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     >
@@ -150,4 +159,8 @@ export default function ChatInterface() {
             </div>
         </div>
     );
-}
+});
+
+ChatInterface.displayName = 'ChatInterface';
+
+export default ChatInterface;
