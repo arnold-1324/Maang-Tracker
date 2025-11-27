@@ -141,6 +141,56 @@ class AgentMemoryManager:
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_category_mastery ON problem_mastery(user_id, category)")
         
+        # Roadmap Topics
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS roadmap_topics (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                tag TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Roadmap Problems
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS roadmap_problems (
+                id TEXT PRIMARY KEY,
+                topic_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                slug TEXT NOT NULL,
+                difficulty TEXT NOT NULL,
+                url TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(topic_id) REFERENCES roadmap_topics(id)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_roadmap_topic ON roadmap_problems(topic_id)")
+        
+        # Training Progress
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS training_progress (
+                resource_id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                type TEXT NOT NULL,
+                status TEXT DEFAULT 'Not Started',
+                last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Reading Notes & Whiteboard
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS reading_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                resource_id TEXT NOT NULL,
+                page_number INTEGER DEFAULT 0,
+                note_type TEXT NOT NULL, -- 'note' or 'whiteboard'
+                content TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_reading_notes_resource ON reading_notes(resource_id)")
+        
         conn.commit()
         conn.close()
     
@@ -813,6 +863,145 @@ class AgentMemoryManager:
         
         conn.commit()
         conn.close()
+
+    # ==================== Roadmap Management ====================
+
+    def store_roadmap_data(self, topics: List[Dict], problems_by_topic: Dict[str, List[Dict]]):
+        """Store roadmap topics and problems in the database"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            print(f"Storing {len(topics)} topics and problems for {len(problems_by_topic)} tags")
+            # Store Topics
+            for topic in topics:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO roadmap_topics (id, name, tag)
+                    VALUES (?, ?, ?)
+                """, (topic['id'], topic['name'], topic['tag']))
+            
+            print("Topics stored.")
+
+            # Store Problems
+            count = 0
+            for topic_tag, problems in problems_by_topic.items():
+                # Find topic_id by tag
+                cursor.execute("SELECT id FROM roadmap_topics WHERE tag = ?", (topic_tag,))
+                row = cursor.fetchone()
+                if not row:
+                    print(f"Warning: No topic found for tag {topic_tag}")
+                    continue
+                topic_id = row['id']
+
+                for p in problems:
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO roadmap_problems (id, topic_id, title, slug, difficulty, url)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (str(p['id']), topic_id, p['title'], p['slug'], p['difficulty'], 
+                          p.get('url', f"https://leetcode.com/problems/{p['slug']}/")))
+                    count += 1
+            
+            print(f"Stored {count} problems.")
+            conn.commit()
+        except Exception as e:
+            print(f"Error storing roadmap data: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+
+    def get_roadmap_data(self) -> Dict[str, Any]:
+        """Retrieve full roadmap data from database"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Get all topics
+            cursor.execute("SELECT * FROM roadmap_topics")
+            topics = [dict(row) for row in cursor.fetchall()]
+
+            roadmap_data = []
+            for topic in topics:
+                # Get problems for this topic
+                cursor.execute("SELECT * FROM roadmap_problems WHERE topic_id = ?", (topic['id'],))
+                problems = [dict(row) for row in cursor.fetchall()]
+                
+                # Format problems
+                formatted_problems = []
+                for p in problems:
+                    formatted_problems.append({
+                        "id": p['id'],
+                        "title": p['title'],
+                        "slug": p['slug'],
+                        "difficulty": p['difficulty'],
+                        "url": p['url'],
+                        "solved": False # Default, will be updated by user stats
+                    })
+
+                roadmap_data.append({
+                    "topicId": topic['id'],
+                    "title": topic['name'],
+                    "tag": topic['tag'],
+                    "totalProblems": len(formatted_problems),
+                    "solvedProblems": 0, # Default
+                    "problems": formatted_problems
+                })
+
+            return {"roadmap": roadmap_data}
+        finally:
+            conn.close()
+
+    # ==================== Training Progress ====================
+
+    def get_training_progress(self) -> List[Dict]:
+        """Get all training progress"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT * FROM training_progress")
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def update_training_progress(self, resource_id: str, title: str, resource_type: str, status: str):
+        """Update training progress for a resource"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT OR REPLACE INTO training_progress (resource_id, title, type, status, last_updated)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (resource_id, title, resource_type, status))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def save_reading_note(self, resource_id: str, page_number: int, note_type: str, content: str):
+        """Save a reading note or whiteboard sketch"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO reading_notes (resource_id, page_number, note_type, content)
+                VALUES (?, ?, ?, ?)
+            """, (resource_id, page_number, note_type, content))
+            conn.commit()
+            return cursor.lastrowid
+        finally:
+            conn.close()
+
+    def get_reading_notes(self, resource_id: str):
+        """Get all notes for a resource"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT * FROM reading_notes 
+                WHERE resource_id = ? 
+                ORDER BY created_at DESC
+            """, (resource_id,))
+            return [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
     
     def record_follow_up_answer(
         self,

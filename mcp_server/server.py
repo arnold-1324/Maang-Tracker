@@ -14,31 +14,78 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP("maang-mcp")
 
 # ----------------------------------------------------------
+#  LeetCode Authentication
+# ----------------------------------------------------------
+@mcp.tool()
+def leetcode_login(username: str, password: str):
+    """Authenticate with LeetCode and return session cookie"""
+    login_url = "https://leetcode.com/accounts/login/"
+    graphql_url = "https://leetcode.com/graphql"
+    
+    session = requests.Session()
+    
+    try:
+        # Get CSRF token
+        response = session.get(login_url)
+        csrf_token = session.cookies.get('csrftoken')
+        
+        if not csrf_token:
+            return {"ok": False, "error": "Failed to get CSRF token"}
+        
+        # Login
+        login_data = {
+            'login': username,
+            'password': password,
+            'csrfmiddlewaretoken': csrf_token
+        }
+        
+        headers = {
+            'Referer': login_url,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = session.post(login_url, data=login_data, headers=headers)
+        
+        # Get session cookie
+        leetcode_session = session.cookies.get('LEETCODE_SESSION')
+        
+        if leetcode_session:
+            return {"ok": True, "session": leetcode_session}
+        else:
+            return {"ok": False, "error": "Login failed. Please check your credentials."}
+            
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+# ----------------------------------------------------------
 #  GitHub Tool
 # ----------------------------------------------------------
 @mcp.tool()
-def list_repos(username: str):
-    token = os.getenv("GITHUB_TOKEN")
-    if not token:
-        return {"ok": False, "error": "Missing GITHUB_TOKEN in environment"}
+def list_repos(username: str, token: str = None):
+    # Use provided token, fallback to env, then fail if neither
+    api_token = token or os.getenv("GITHUB_TOKEN")
+    if not api_token:
+        return {"ok": False, "error": "Missing GITHUB_TOKEN. Please provide it in settings."}
 
-    gh = Github(token)
-    user = gh.get_user(username)
-
-    repos = [{
-        "name": r.name,
-        "url": r.html_url,
-        "stars": r.stargazers_count,
-        "description": r.description
-    } for r in user.get_repos()]
-
-    return {"ok": True, "repos": repos}
+    gh = Github(api_token)
+    try:
+        user = gh.get_user(username)
+        repos = [{
+            "name": r.name,
+            "url": r.html_url,
+            "stars": r.stargazers_count,
+            "description": r.description,
+            "language": r.language
+        } for r in user.get_repos()]
+        return {"ok": True, "repos": repos}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 # ----------------------------------------------------------
 #  LeetCode Tool
 # ----------------------------------------------------------
 @mcp.tool()
-def leetcode_stats(username: str):
+def leetcode_stats(username: str, session_cookie: str = None):
     query = """
     query getUser($username: String!) {
       matchedUser(username: $username) {
@@ -49,14 +96,93 @@ def leetcode_stats(username: str):
           }
         }
       }
+      recentAcSubmissionList(username: $username, limit: 100) {
+        title
+        titleSlug
+        timestamp
+      }
     }
     """
     url = "https://leetcode.com/graphql"
-    resp = requests.post(url,
-        json={"query": query, "variables": {"username": username}},
-        headers={"User-Agent": "maang-agent"}
-    )
-    return resp.json()
+    headers = {
+        "User-Agent": "maang-agent", 
+        "Content-Type": "application/json"
+    }
+    if session_cookie:
+        headers["Cookie"] = f"LEETCODE_SESSION={session_cookie}"
+
+    try:
+        resp = requests.post(url,
+            json={"query": query, "variables": {"username": username}},
+            headers=headers
+        )
+        return resp.json()
+    except Exception as e:
+        return {"errors": [str(e)]}
+
+@mcp.tool()
+def leetcode_problems(tag: str, limit: int = 20):
+    query = """
+    query getTopicTag($slug: String!, $limit: Int) {
+      topicTag(name: $slug) {
+        name
+        questions(limit: $limit) {
+          questionId
+          questionFrontendId
+          title
+          titleSlug
+          difficulty
+          topicTags {
+            name
+            slug
+          }
+        }
+      }
+    }
+    """
+    url = "https://leetcode.com/graphql"
+    try:
+        resp = requests.post(url,
+            json={"query": query, "variables": {"slug": tag, "limit": limit}},
+            headers={"User-Agent": "maang-agent", "Content-Type": "application/json"}
+        )
+        return resp.json()
+    except Exception as e:
+        return {"errors": [str(e)]}
+
+@mcp.tool()
+def leetcode_all_solved(username: str):
+    """Get all solved problems for a LeetCode user"""
+    query = """
+    query getUserProfile($username: String!) {
+      matchedUser(username: $username) {
+        username
+        submitStats {
+          acSubmissionNum {
+            difficulty
+            count
+          }
+        }
+        profile {
+          ranking
+        }
+      }
+      recentAcSubmissionList(username: $username, limit: 5000) {
+        title
+        titleSlug
+        timestamp
+      }
+    }
+    """
+    url = "https://leetcode.com/graphql"
+    try:
+        resp = requests.post(url,
+            json={"query": query, "variables": {"username": username}},
+            headers={"User-Agent": "maang-agent", "Content-Type": "application/json"}
+        )
+        return resp.json()
+    except Exception as e:
+        return {"errors": [str(e)]}
 
 # ----------------------------------------------------------
 #  GeeksForGeeks Search

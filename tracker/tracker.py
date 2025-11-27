@@ -1,13 +1,12 @@
 # tracker/tracker.py
 """
 Polls the local MCP server tools (github, leetcode, gfg) and stores snapshots into SQLite memory.
-Run this periodically (cron or manually) to update memory.
+Updated for multi-user system.
 """
 import os
 import requests
 import time
 import argparse
-from memory.db import init_db, insert_snapshot, upsert_weakness
 
 MCP_BASE = os.getenv("MCP_URL", "http://localhost:8765/mcp")  # adjust if different
 
@@ -15,7 +14,6 @@ def call_mcp(tool: str, params: dict):
     """
     Calls the FastMCP HTTP tool endpoint.
     FastMCP exposes POST /mcp/invoke with JSON: { "tool":"name", "args": {...} } or similar.
-    We'll use the ADK MCP client style endpoint; if your FastMCP has different API, adapt this small function.
     """
     url = f"{MCP_BASE}/invoke"  # many FastMCP versions expose /invoke; fallback handled later
     payload = {"tool": tool, "args": params}
@@ -30,44 +28,26 @@ def call_mcp(tool: str, params: dict):
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
-def snapshot_github(username: str):
-    res = call_mcp("list_repos", {"username": username})
-    insert_snapshot("github", username, res)
-    # simple weakness heuristic: if repo count < 5 then small project exposure
-    if res.get("ok"):
-        repos = res.get("repos", [])
-        if len(repos) < 5:
-            upsert_weakness("OSS/ProjectExposure", 10)
+def snapshot_github(username: str, token: str = None):
+    """Fetch GitHub data via MCP"""
+    res = call_mcp("list_repos", {"username": username, "token": token})
     return res
 
-def snapshot_leetcode(username: str):
-    res = call_mcp("leetcode_stats", {"username": username})
-    insert_snapshot("leetcode", username, res)
-    # weakness heuristics: low counts in medium/hard => mark problems
-    try:
-        stats = res.get("data", {}).get("matchedUser", {}).get("submitStats", {}).get("acSubmissionNum", [])
-        counts = {entry["difficulty"]: entry["count"] for entry in stats} if stats else {}
-        easy = counts.get("Easy", 0)
-        med = counts.get("Medium", 0)
-        hard = counts.get("Hard", 0)
-        if med < 20:
-            upsert_weakness("Dynamic Programming / Medium Problems", 8)
-        if hard < 5:
-            upsert_weakness("Hard Problems", 9)
-    except Exception:
-        pass
+def snapshot_leetcode(username: str, session: str = None):
+    """Fetch LeetCode data via MCP"""
+    res = call_mcp("leetcode_stats", {"username": username, "session_cookie": session})
     return res
 
 def main_loop(args):
-    init_db()
+    """Legacy CLI interface - now just prints data"""
     if args.github:
         print("Pulling GitHub data...")
-        snapshot_github(args.github)
-        print("GitHub snapshot saved.")
+        result = snapshot_github(args.github)
+        print(f"Result: {result}")
     if args.leetcode:
         print("Pulling LeetCode data...")
-        snapshot_leetcode(args.leetcode)
-        print("LeetCode snapshot saved.")
+        result = snapshot_leetcode(args.leetcode)
+        print(f"Result: {result}")
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()

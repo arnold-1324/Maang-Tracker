@@ -1,0 +1,16 @@
+{
+    "name": "p2p-tunnel",
+    "version": "1.0.0",
+    "description": "WebRTC P2P Tunnel for Local App Exposure",
+    "main": "host.js",
+    "scripts": {
+        "host": "node host.js",
+        "client": "node client.js"
+    },
+    "dependencies": {
+        "axios": "^1.6.0",
+        "mqtt": "^5.3.0",
+        "simple-peer": "^9.11.1",
+        "wrtc": "^0.4.7"
+    }
+}
