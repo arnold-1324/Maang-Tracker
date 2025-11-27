@@ -88,52 +88,56 @@ export default function RoadmapTree() {
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [viewingCode, setViewingCode] = useState<ProblemDetail | null>(null);
     const [nodes, setNodes] = useState(NODES);
+    const [roadmapData, setRoadmapData] = useState<any[]>([]);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Fetch progress from backend to update nodes
     useEffect(() => {
-        fetch('/api/roadmap')
+        fetch('/api/roadmap/leetcode')
             .then(res => res.json())
             .then(d => {
-                if (d.success && d.visualization && d.visualization.nodes_data) {
+                if (d.success && d.roadmap) {
+                    setRoadmapData(d.roadmap);
                     // Map backend progress to our static nodes
-                    const updatedNodes = nodes.map(node => {
-                        // Find matching topic from backend (fuzzy match or exact)
-                        const backendNode = d.visualization.nodes_data.find((n: any) =>
-                            n.topic.toLowerCase().includes(node.label.toLowerCase()) ||
-                            node.label.toLowerCase().includes(n.topic.toLowerCase())
-                        );
+                    setNodes(prevNodes => prevNodes.map(node => {
+                        const backendNode = d.roadmap.find((n: any) => n.topicId === node.id);
 
                         if (backendNode) {
                             return {
                                 ...node,
-                                progress: backendNode.progress,
-                                solved: backendNode.solved,
-                                total: backendNode.total
+                                progress: (backendNode.solvedProblems / Math.max(backendNode.totalProblems, 1)) * 100,
+                                solved: backendNode.solvedProblems,
+                                total: backendNode.totalProblems
                             };
                         }
                         return node;
-                    });
-                    setNodes(updatedNodes);
+                    }));
                 }
             })
-            .catch(console.error);
+            .catch(err => console.error("Error fetching roadmap:", err));
     }, []);
 
-    const handleNodeClick = async (nodeId: string, label: string) => {
+    const handleNodeClick = (nodeId: string, label: string) => {
         setSelectedTopic(label);
-        setLoadingDetails(true);
+        setLoadingDetails(false);
         setViewingCode(null);
 
-        try {
-            const res = await fetch(`/api/roadmap/topic-details?topic=${encodeURIComponent(label)}`);
-            const d = await res.json();
-            if (d.success) {
-                setTopicDetails(d.problems);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoadingDetails(false);
+        const topicData = roadmapData.find(t => t.topicId === nodeId);
+        if (topicData) {
+            setTopicDetails(topicData.problems.map((p: any) => ({
+                problem_id: p.id,
+                problem_name: p.title,
+                solved: p.solved,
+                difficulty: p.difficulty,
+                leetcodeUrl: p.url,
+                starred: false
+            })));
+        } else {
+            setTopicDetails([]);
         }
     };
 
@@ -145,6 +149,8 @@ export default function RoadmapTree() {
             default: return 'text-slate-400';
         }
     };
+
+    if (!mounted) return <div className="p-8 text-center text-slate-400">Loading roadmap...</div>;
 
     return (
         <div className="relative w-full bg-[#0f172a] rounded-xl p-8 shadow-2xl border border-slate-800 overflow-hidden min-h-[800px]">
@@ -278,7 +284,7 @@ export default function RoadmapTree() {
                                             <th className="py-3 font-medium">Star</th>
                                             <th className="py-3 font-medium w-full">Problem</th>
                                             <th className="py-3 font-medium">Difficulty</th>
-                                            <th className="py-3 font-medium text-right pr-2">Solution</th>
+                                            <th className="py-3 font-medium text-right pr-2">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody className="text-sm">
@@ -301,21 +307,28 @@ export default function RoadmapTree() {
                                                         <Star size={16} className={`${prob.starred ? 'text-amber-400 fill-amber-400' : 'text-slate-600'}`} />
                                                     </td>
                                                     <td className="py-3">
-                                                        <button
-                                                            onClick={() => setViewingCode(prob)}
+                                                        <a
+                                                            href={prob.leetcodeUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
                                                             className="text-slate-200 font-medium hover:text-indigo-400 transition-colors text-left flex items-center gap-2"
                                                         >
                                                             {prob.problem_name}
                                                             <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500" />
-                                                        </button>
+                                                        </a>
                                                     </td>
                                                     <td className={`py-3 font-medium ${getDifficultyColor(prob.difficulty)}`}>
                                                         {prob.difficulty}
                                                     </td>
                                                     <td className="py-3 text-right pr-2">
-                                                        <button className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors">
-                                                            <Video size={16} />
-                                                        </button>
+                                                        <a
+                                                            href={prob.leetcodeUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors"
+                                                        >
+                                                            <ExternalLink size={16} />
+                                                        </a>
                                                     </td>
                                                 </tr>
                                             ))

@@ -204,20 +204,68 @@ export default function Whiteboard() {
     // Pan/zoom
     // -------------------------
     const onPanStart = (e: React.PointerEvent) => {
-        // middle mouse
-        if (e.button !== 1) return;
-        panRef.current.dragging = true;
-        panRef.current.startX = e.clientX - offset.x;
-        panRef.current.startY = e.clientY - offset.y;
-        (e.target as Element).setPointerCapture(e.pointerId);
+        // Middle mouse or space+left mouse for panning
+        if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+            e.preventDefault();
+            panRef.current.dragging = true;
+            panRef.current.startX = e.clientX - offset.x;
+            panRef.current.startY = e.clientY - offset.y;
+            (e.target as Element).setPointerCapture(e.pointerId);
+        }
     };
+
     const onPanMove = (e: React.PointerEvent) => {
         if (panRef.current.dragging) {
             setOffset({ x: e.clientX - panRef.current.startX, y: e.clientY - panRef.current.startY });
         }
     };
+
     const onPanEnd = () => {
         panRef.current.dragging = false;
+    };
+
+    // n8n-style scroll wheel zoom centered on cursor
+    const handleWheel = (e: React.WheelEvent) => {
+        // prevent the page from scrolling when pointer is on the viewport
+        e.preventDefault();
+
+        if (!viewportRef.current || !canvasRef.current) return;
+
+        const rect = viewportRef.current.getBoundingClientRect();
+
+        // default mouse position (relative to viewport)
+        let mouseX = e.clientX - rect.left;
+        let mouseY = e.clientY - rect.top;
+
+        // If the wheel event happened over a component, prefer zooming centered on the component center
+        const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+        const compEl = el?.closest('[data-compid]') as HTMLElement | null;
+        if (compEl && canvasRef.current.contains(compEl)) {
+            const compRect = compEl.getBoundingClientRect();
+            mouseX = (compRect.left + compRect.right) / 2 - rect.left;
+            mouseY = (compRect.top + compRect.bottom) / 2 - rect.top;
+        }
+
+        const delta = e.deltaY;
+        // small adjustment to feel snappier; tweak to taste
+        const zoomSpeed = 0.0015;
+        const zoomFactor = Math.exp(-delta * zoomSpeed);
+
+        // Calculate new zoom level
+        const newZoom = Math.max(0.1, Math.min(3, zoom * zoomFactor));
+
+        if (newZoom === zoom) return;
+
+        // Calculate the point in canvas coordinates before zoom
+        const canvasX = (mouseX - offset.x) / zoom;
+        const canvasY = (mouseY - offset.y) / zoom;
+
+        // Calculate new offset to keep the same point under the cursor (or component center)
+        const newOffsetX = mouseX - canvasX * newZoom;
+        const newOffsetY = mouseY - canvasY * newZoom;
+
+        setZoom(newZoom);
+        setOffset({ x: newOffsetX, y: newOffsetY });
     };
 
     // -------------------------
@@ -382,7 +430,8 @@ export default function Whiteboard() {
 
             {/* Main area */}
             <div className="flex-1 relative overflow-hidden">
-                <div ref={viewportRef} className="absolute inset-0">
+                {/* touch-action: none prevents native two-finger/trackpad gestures from scrolling the page while interacting */}
+                <div ref={viewportRef} className="absolute inset-0" onWheel={handleWheel} style={{ touchAction: 'none' }}>
                     <div
                         ref={canvasRef}
                         className="relative"

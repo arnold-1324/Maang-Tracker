@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Code, TrendingUp, AlertTriangle, Video, Target } from 'lucide-react';
+import { Home, Code, TrendingUp, AlertTriangle, Video, Target, BookOpen } from 'lucide-react';
 
 export default function Navigation() {
     const pathname = usePathname();
@@ -11,6 +11,7 @@ export default function Navigation() {
     const navItems = [
         { href: '/', label: 'Home', icon: Home },
         { href: '/roadmap', label: 'Roadmap', icon: Target },
+        { href: '/training', label: 'Training', icon: BookOpen },
         { href: '/interview', label: 'Interview', icon: Video },
         { href: '/progress', label: 'Progress', icon: TrendingUp },
         { href: '/weakness', label: 'Weakness', icon: AlertTriangle },
@@ -41,8 +42,8 @@ export default function Navigation() {
                                     key={item.href}
                                     href={item.href}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive
-                                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
                                         }`}
                                 >
                                     <Icon size={16} />

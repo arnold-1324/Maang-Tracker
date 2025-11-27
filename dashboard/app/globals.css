@@ -1,26 +1,51 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Default Theme (Slate/Indigo) */
+  --bg-primary: #0f172a; /* slate-900 */
+  --bg-secondary: #1e293b; /* slate-800 */
+  --text-primary: #f8fafc; /* slate-50 */
+  --text-secondary: #94a3b8; /* slate-400 */
+  --accent-primary: #4f46e5; /* indigo-600 */
+  --accent-secondary: #9333ea; /* purple-600 */
+  --border-color: #334155; /* slate-700 */
+  --card-bg: rgba(30, 41, 59, 0.5); /* slate-800/50 */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-theme='spiderman'] {
+  /* Spider-Man Theme (Red/Blue/Black) */
+  --bg-primary: #1a0b0b; /* Very dark red/black */
+  --bg-secondary: #2a1010; /* Dark red */
+  --text-primary: #ffffff;
+  --text-secondary: #cbd5e1;
+  --accent-primary: #ef4444; /* Red-500 */
+  --accent-secondary: #3b82f6; /* Blue-500 */
+  --border-color: #7f1d1d; /* Red-900 */
+  --card-bg: rgba(42, 16, 16, 0.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+[data-theme='batman'] {
+  /* Batman Theme (Black/Dark Grey/Yellow) */
+  --bg-primary: #000000;
+  --bg-secondary: #171717; /* neutral-900 */
+  --text-primary: #e5e5e5;
+  --text-secondary: #a3a3a3;
+  --accent-primary: #fbbf24; /* amber-400 (Yellow) */
+  --accent-secondary: #525252; /* neutral-600 */
+  --border-color: #404040; /* neutral-700 */
+  --card-bg: rgba(23, 23, 23, 0.6);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.5s ease, color 0.3s ease;
 }
+
+/* Utility classes for themes */
+.theme-bg-primary { background-color: var(--bg-primary); }
+.theme-bg-secondary { background-color: var(--bg-secondary); }
+.theme-text-primary { color: var(--text-primary); }
+.theme-text-secondary { color: var(--text-secondary); }
+.theme-border { border-color: var(--border-color); }
+
