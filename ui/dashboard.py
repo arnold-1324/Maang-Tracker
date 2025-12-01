@@ -1498,11 +1498,13 @@ def signup():
     email = data.get('email')
     password = data.get('password')
     full_name = data.get('full_name')
+    username = data.get('username', email.split('@')[0])  # Use email prefix as default username
     
     if not email or not password:
         return jsonify({"success": False, "error": "Email and password required"}), 400
     
-    user_id = create_user(email, password, full_name)
+    # create_user(username, email, password, full_name)
+    user_id = create_user(username, email, password, full_name)
     if not user_id:
         return jsonify({"success": False, "error": "User already exists"}), 409
     
@@ -1609,19 +1611,30 @@ def save_github_credentials():
 @app.route('/api/sync/leetcode', methods=['POST'])
 @require_auth
 def sync_leetcode():
-    """Sync LeetCode data with intelligent caching"""
-    force_refresh = request.json.get('force_refresh', False) if request.json else False
-    
-    # Run async sync
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    result = loop.run_until_complete(SyncService.sync_leetcode_data(request.user_id, force_refresh))
-    loop.close()
-    
-    if result.get('success'):
-        return jsonify(result)
-    else:
-        return jsonify(result), 500
+    """Sync LeetCode data with intelligent caching and weakness analysis"""
+    try:
+        force_refresh = request.json.get('force_refresh', False) if request.json else False
+        
+        # Run async sync
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(SyncService.sync_leetcode_data(request.user_id, force_refresh))
+        
+        # Analyze weaknesses if sync succeeded
+        if result.get('success'):
+            weaknesses = loop.run_until_complete(SyncService.analyze_weaknesses(request.user_id, result))
+            result['weaknesses_analyzed'] = len(weaknesses)
+        
+        loop.close()
+        
+        if result.get('success'):
+            return jsonify(result)
+        else:
+            app.logger.error(f"LeetCode sync failed: {result.get('error')}")
+            return jsonify(result), 500
+    except Exception as e:
+        app.logger.error(f"LeetCode sync exception: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/sync/github', methods=['POST'])
 @require_auth
@@ -1670,10 +1683,19 @@ def api_get_weaknesses():
 @app.route('/api/user/progress', methods=['GET'])
 @require_auth
 def api_get_user_progress():
-    """Get user progress across all topics"""
-    from memory.db import get_user_progress
-    progress = get_user_progress(request.user_id)
-    return jsonify({"success": True, "progress": progress})
+    """Get comprehensive user progress"""
+    try:
+        from services.sync_service import SyncService
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        progress = loop.run_until_complete(SyncService.get_comprehensive_progress(request.user_id))
+        loop.close()
+        
+        return jsonify({"success": True, "data": progress})
+    except Exception as e:
+        app.logger.error(f"Progress fetch error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # ===== CACHE MANAGEMENT =====
 
@@ -1683,6 +1705,27 @@ def clear_user_cache():
     """Clear all cache for current user"""
     CacheManager.invalidate_user(request.user_id)
     return jsonify({"success": True, "message": "Cache cleared successfully"})
+
+@app.route('/api/user/focus', methods=['GET', 'POST'])
+@require_auth
+def user_focus():
+    """Get or set user's current focus topic"""
+    from memory.db import save_user_focus, get_user_focus
+    
+    if request.method == 'POST':
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"}), 400
+            
+        success = save_user_focus(request.user_id, data)
+        if success:
+            return jsonify({"success": True, "message": "Focus topic updated"})
+        else:
+            return jsonify({"success": False, "error": "Failed to update focus topic"}), 500
+            
+    else: # GET
+        focus = get_user_focus(request.user_id)
+        return jsonify({"success": True, "focus": focus})
 
 @app.route('/api/training/progress', methods=['POST'])
 def update_training_progress():

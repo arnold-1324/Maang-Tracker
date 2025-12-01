@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { TrendingUp, Target, Award, Calendar, Clock, Brain } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
+import { useAuth } from '@/context/AuthContext';
 
 interface ProgressData {
     overall_mastery: number;
@@ -23,49 +24,52 @@ interface ProgressData {
     recommendations: string[];
 }
 
-const mockData: ProgressData = {
-    overall_mastery: 68,
-    problems_solved: 142,
-    total_problems: 350,
-    topics_mastered: 12,
-    total_topics: 20,
-    avg_time_per_problem: 25,
-    interview_sessions: 8,
-    recent_activity: [
-        { date: '2025-11-19', topic: 'Arrays & Hashing', problems_solved: 3, time_spent: 45 },
-        { date: '2025-11-18', topic: 'Two Pointers', problems_solved: 2, time_spent: 30 },
-        { date: '2025-11-17', topic: 'Binary Search', problems_solved: 4, time_spent: 60 },
-    ],
-    weak_areas: ['Dynamic Programming', 'Graph Algorithms', 'Backtracking'],
-    strong_areas: ['Arrays', 'Hash Maps', 'Two Pointers'],
-    recommendations: [
-        'Focus on 2-D DP problems to strengthen weak areas',
-        'Practice more graph traversal problems',
-        'Review backtracking patterns with tree problems'
-    ]
-};
-
 export default function ProgressPage() {
+    const { token, isAuthenticated, isLoading: authLoading } = useAuth();
     const [data, setData] = useState<ProgressData | null>(null);
-    const [mounted, setMounted] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setMounted(true);
-        fetch('/api/progress?user_id=default_user')
-            .then(res => res.json())
-            .then(d => {
-                if (d.success) {
-                    setData(d.data);
-                }
+        if (!authLoading && isAuthenticated && token) {
+            fetch('/api/user/progress', {
+                headers: { 'Authorization': `Bearer ${token}` }
             })
-            .catch(console.error);
-    }, []);
+                .then(res => res.json())
+                .then(d => {
+                    if (d.success) {
+                        setData(d.data);
+                    }
+                    setLoading(false);
+                })
+                .catch(err => {
+                    console.error(err);
+                    setLoading(false);
+                });
+        } else if (!authLoading && !isAuthenticated) {
+            setLoading(false);
+        }
+    }, [token, isAuthenticated, authLoading]);
 
-    if (!mounted) {
-        return null; // Prevent hydration mismatch
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+                <div className="text-slate-400 animate-pulse">Loading progress...</div>
+            </div>
+        );
     }
 
-    const progressData = data || mockData;
+    if (!data) {
+        return (
+            <div className="min-h-screen bg-slate-950 py-8 flex items-center justify-center">
+                <div className="text-center">
+                    <h2 className="text-xl font-bold text-white mb-2">No Progress Data Available</h2>
+                    <p className="text-slate-400">Please sync your LeetCode account in settings to see your progress.</p>
+                </div>
+            </div>
+        );
+    }
+
+    const progressData = data;
 
     return (
         <div className="min-h-screen bg-slate-950 py-8">

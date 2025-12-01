@@ -8,23 +8,35 @@ import requests
 import time
 import argparse
 
-MCP_BASE = os.getenv("MCP_URL", "http://localhost:8765/mcp")  # adjust if different
+MCP_BASE = os.getenv("MCP_URL", "http://localhost:8765")
 
 def call_mcp(tool: str, params: dict):
     """
-    Calls the FastMCP HTTP tool endpoint.
-    FastMCP exposes POST /mcp/invoke with JSON: { "tool":"name", "args": {...} } or similar.
+    Calls the MCP HTTP wrapper endpoints.
     """
-    url = f"{MCP_BASE}/invoke"  # many FastMCP versions expose /invoke; fallback handled later
-    payload = {"tool": tool, "args": params}
+    # Try /call/{tool} endpoint first (most direct)
+    url = f"{MCP_BASE}/call/{tool}"
     try:
+        r = requests.post(url, json=params, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            if data.get('success'):
+                return data.get('result', data)
+            else:
+                return {"ok": False, "error": data.get('error', 'Unknown error')}
+        
+        # Fallback to /invoke endpoint
+        url = f"{MCP_BASE}/invoke"
+        payload = {"tool": tool, "args": params}
         r = requests.post(url, json=payload, timeout=10)
-        if r.status_code == 404:
-            # fallback: some FastMCP versions expose /rpc or direct JSON; try /call/<tool>
-            alt = f"{MCP_BASE}/call/{tool}"
-            r = requests.post(alt, json=params, timeout=10)
-        r.raise_for_status()
-        return r.json()
+        if r.status_code == 200:
+            data = r.json()
+            if data.get('success'):
+                return data.get('result', data)
+            else:
+                return {"ok": False, "error": data.get('error', 'Unknown error')}
+        
+        return {"ok": False, "error": f"HTTP {r.status_code}: {r.text}"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 

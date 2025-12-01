@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Code, TrendingUp, AlertTriangle, Video, Target, BookOpen, ChevronRight, ChevronLeft, Palette } from 'lucide-react';
+import { Home, Code, TrendingUp, AlertTriangle, Video, Target, BookOpen, ChevronRight, ChevronLeft, Palette, LogOut, Settings } from 'lucide-react';
 import { useTheme, Theme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 
 interface SidebarProps {
     collapsed: boolean;
@@ -14,6 +15,7 @@ interface SidebarProps {
 export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     const pathname = usePathname();
     const { theme, setTheme } = useTheme();
+    const { logout } = useAuth();
 
     const navItems = [
         { href: '/', label: 'Home', icon: Home },
@@ -22,6 +24,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
         { href: '/interview', label: 'Interview', icon: Video },
         { href: '/progress', label: 'Progress', icon: TrendingUp },
         { href: '/weakness', label: 'Weakness', icon: AlertTriangle },
+        { href: '/settings', label: 'Settings', icon: Settings },
     ];
 
     const themes: { id: Theme; label: string; color: string }[] = [
@@ -87,6 +90,22 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                     );
                 })}
             </nav>
+
+            {/* Logout Button */}
+            <div className="px-3 pb-2">
+                <button
+                    onClick={logout}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all group hover:bg-red-500/10 text-red-400 hover:text-red-300`}
+                >
+                    <LogOut size={20} />
+                    {!collapsed && <span className="font-medium">Sign Out</span>}
+                    {collapsed && (
+                        <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
+                            Sign Out
+                        </div>
+                    )}
+                </button>
+            </div>
 
             {/* Theme Switcher */}
             <div className="p-4 border-t" style={{ borderColor: 'var(--border-color)' }}>

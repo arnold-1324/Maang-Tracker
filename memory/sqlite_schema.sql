@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS user_snapshot;
 DROP TABLE IF EXISTS topic_stats;
 DROP TABLE IF EXISTS weakness_profile;
 DROP TABLE IF EXISTS settings;
+DROP TABLE IF EXISTS user_focus;
 
 -- Users table (core authentication)
 CREATE TABLE users (
@@ -141,6 +142,19 @@ CREATE TABLE cache_store (
     created_at DATETIME DEFAULT (datetime('now')),
     hit_count INTEGER DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- User focus topic
+CREATE TABLE user_focus (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    topic_id TEXT NOT NULL,
+    topic_name TEXT NOT NULL,
+    topic_emoji TEXT,
+    topic_color TEXT,
+    set_at DATETIME DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id)
 );
 
 -- Create indexes for performance

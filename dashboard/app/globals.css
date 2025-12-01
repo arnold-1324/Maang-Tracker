@@ -2,37 +2,45 @@
 
 :root {
   /* Default Theme (Slate/Indigo) */
-  --bg-primary: #0f172a; /* slate-900 */
-  --bg-secondary: #1e293b; /* slate-800 */
-  --text-primary: #f8fafc; /* slate-50 */
-  --text-secondary: #94a3b8; /* slate-400 */
-  --accent-primary: #4f46e5; /* indigo-600 */
-  --accent-secondary: #9333ea; /* purple-600 */
-  --border-color: #334155; /* slate-700 */
-  --card-bg: rgba(30, 41, 59, 0.5); /* slate-800/50 */
+  --bg-primary: #0f172a;
+  /* slate-900 */
+  --bg-secondary: #1e293b;
+  /* slate-800 */
+  --text-primary: #f8fafc;
+  /* slate-50 */
+  --text-secondary: #94a3b8;
+  /* slate-400 */
+  --accent-primary: #4f46e5;
+  /* indigo-600 */
+  --accent-secondary: #9333ea;
+  /* purple-600 */
+  --border-color: #334155;
+  /* slate-700 */
+  --card-bg: rgba(30, 41, 59, 0.5);
+  /* slate-800/50 */
 }
 
 [data-theme='spiderman'] {
   /* Spider-Man Theme (Red/Blue/Black) */
-  --bg-primary: #1a0b0b; /* Very dark red/black */
-  --bg-secondary: #2a1010; /* Dark red */
+  --bg-primary: #1a0b0b;
+  --bg-secondary: #2a1010;
   --text-primary: #ffffff;
   --text-secondary: #cbd5e1;
-  --accent-primary: #ef4444; /* Red-500 */
-  --accent-secondary: #3b82f6; /* Blue-500 */
-  --border-color: #7f1d1d; /* Red-900 */
+  --accent-primary: #ef4444;
+  --accent-secondary: #3b82f6;
+  --border-color: #7f1d1d;
   --card-bg: rgba(42, 16, 16, 0.6);
 }
 
 [data-theme='batman'] {
   /* Batman Theme (Black/Dark Grey/Yellow) */
   --bg-primary: #000000;
-  --bg-secondary: #171717; /* neutral-900 */
+  --bg-secondary: #171717;
   --text-primary: #e5e5e5;
   --text-secondary: #a3a3a3;
-  --accent-primary: #fbbf24; /* amber-400 (Yellow) */
-  --accent-secondary: #525252; /* neutral-600 */
-  --border-color: #404040; /* neutral-700 */
+  --accent-primary: #fbbf24;
+  --accent-secondary: #525252;
+  --border-color: #404040;
   --card-bg: rgba(23, 23, 23, 0.6);
 }
 
@@ -40,12 +48,110 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   transition: background-color 0.5s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.4s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out;
 }
 
 /* Utility classes for themes */
-.theme-bg-primary { background-color: var(--bg-primary); }
-.theme-bg-secondary { background-color: var(--bg-secondary); }
-.theme-text-primary { color: var(--text-primary); }
-.theme-text-secondary { color: var(--text-secondary); }
-.theme-border { border-color: var(--border-color); }
+.theme-bg-primary {
+  background-color: var(--bg-primary);
+}
 
+.theme-bg-secondary {
+  background-color: var(--bg-secondary);
+}
+
+.theme-text-primary {
+  color: var(--text-primary);
+}
+
+.theme-text-secondary {
+  color: var(--text-secondary);
+}
+
+.theme-border {
+  border-color: var(--border-color);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-secondary);
+}
+
+/* Glassmorphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

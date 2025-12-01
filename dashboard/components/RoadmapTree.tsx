@@ -3,6 +3,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { X, Code, FileText, CheckCircle, Lock, Star, Video, ChevronRight, ExternalLink } from 'lucide-react';
 import CodeEditor from './CodeEditor';
+import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
 
 // --- Types ---
 
@@ -90,10 +92,44 @@ export default function RoadmapTree() {
     const [nodes, setNodes] = useState(NODES);
     const [roadmapData, setRoadmapData] = useState<any[]>([]);
     const [mounted, setMounted] = useState(false);
+    const [currentTopic, setCurrentTopic] = useState<any>(null);
+
+    const { theme } = useTheme();
+    const { token } = useAuth();
 
     useEffect(() => {
         setMounted(true);
-    }, []);
+
+        // Fetch focus topic from API
+        if (token) {
+            fetch('/api/user/focus', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.focus) {
+                        setCurrentTopic(data.focus);
+                    } else {
+                        // Fallback to local storage
+                        const saved = localStorage.getItem('currentTopic');
+                        if (saved) {
+                            try {
+                                setCurrentTopic(JSON.parse(saved));
+                            } catch (e) { }
+                        }
+                    }
+                })
+                .catch(err => console.error("Error fetching focus:", err));
+        } else {
+            // Fallback to local storage if not logged in
+            const saved = localStorage.getItem('currentTopic');
+            if (saved) {
+                try {
+                    setCurrentTopic(JSON.parse(saved));
+                } catch (e) { }
+            }
+        }
+    }, [token]);
 
     // Fetch progress from backend to update nodes
     useEffect(() => {
@@ -187,34 +223,81 @@ export default function RoadmapTree() {
                         })}
 
                         {/* Nodes (rendered as HTML foreignObjects for better styling) */}
-                        {nodes.map((node) => (
-                            <foreignObject
-                                key={node.id}
-                                x={node.x - 75}
-                                y={node.y - 25}
-                                width="150"
-                                height="50"
-                                className="overflow-visible"
-                            >
-                                <div
-                                    onClick={() => handleNodeClick(node.id, node.label)}
-                                    className="w-[150px] h-[50px] bg-indigo-600 hover:bg-indigo-500 rounded-lg cursor-pointer transition-all duration-300 shadow-lg flex flex-col items-center justify-center relative group border border-indigo-400/30"
+                        {nodes.map((node) => {
+                            const isCurrentTopic = currentTopic && (
+                                node.id === currentTopic.id ||
+                                node.label.toLowerCase().includes(currentTopic.name.toLowerCase().split(' ')[0])
+                            );
+
+                            return (
+                                <foreignObject
+                                    key={node.id}
+                                    x={node.x - 75}
+                                    y={node.y - 25}
+                                    width="150"
+                                    height="50"
+                                    className="overflow-visible"
                                 >
-                                    <span className="text-white text-xs font-bold text-center px-2 leading-tight">{node.label}</span>
+                                    <div
+                                        onClick={() => handleNodeClick(node.id, node.label)}
+                                        className={`w-[150px] h-[50px] ${isCurrentTopic
+                                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 ring-2 ring-yellow-400 ring-offset-2 ring-offset-slate-950'
+                                            : 'bg-indigo-600 hover:bg-indigo-500'
+                                            } rounded-lg cursor-pointer transition-all duration-300 shadow-lg flex flex-col items-center justify-center relative group border border-indigo-400/30`}
+                                    >
+                                        <span className="text-white text-xs font-bold text-center px-2 leading-tight">{node.label}</span>
 
-                                    {/* Progress Bar inside Node */}
-                                    <div className="absolute bottom-2 w-3/4 h-1 bg-indigo-900/50 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-emerald-400 transition-all duration-500"
-                                            style={{ width: `${node.progress}%` }}
-                                        ></div>
+                                        {/* Progress Bar inside Node */}
+                                        <div className="absolute bottom-2 w-3/4 h-1 bg-indigo-900/50 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-emerald-400 transition-all duration-500"
+                                                style={{ width: `${node.progress}%` }}
+                                            ></div>
+                                        </div>
+
+                                        {/* Hover Glow */}
+                                        <div className="absolute inset-0 rounded-lg ring-2 ring-white/0 group-hover:ring-white/20 transition-all"></div>
+
+                                        {/* Current Topic Avatar/Emoji */}
+                                        {isCurrentTopic && currentTopic && (
+                                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 animate-bounce z-10">
+                                                <div className="relative group/avatar">
+                                                    {/* Glow effect */}
+                                                    <div className={`absolute inset-0 blur-xl rounded-full ${theme === 'spiderman' ? 'bg-red-500/50' :
+                                                            theme === 'batman' ? 'bg-yellow-400/50' :
+                                                                'bg-indigo-500/50'
+                                                        }`}></div>
+
+                                                    {/* Avatar Image */}
+                                                    <div className={`w-12 h-12 rounded-full border-2 shadow-xl flex items-center justify-center overflow-hidden bg-slate-900 ${theme === 'spiderman' ? 'border-red-500' :
+                                                            theme === 'batman' ? 'border-yellow-400' :
+                                                                'border-indigo-500'
+                                                        }`}>
+                                                        {theme === 'spiderman' ? (
+                                                            <img src="/avatars/spiderman.png" alt="Spiderman" className="w-full h-full object-cover" />
+                                                        ) : theme === 'batman' ? (
+                                                            <img src="/avatars/batman.png" alt="Batman" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <img src="/avatars/default.png" alt="Default" className="w-full h-full object-cover" />
+                                                        )}
+                                                    </div>
+
+                                                    {/* Sparkle effect */}
+                                                    <div className="absolute -top-1 -right-1 text-yellow-400 animate-pulse">
+                                                        ✨
+                                                    </div>
+
+                                                    {/* Tooltip */}
+                                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover/avatar:opacity-100 transition-opacity whitespace-nowrap border border-slate-700">
+                                                        Current Focus
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-
-                                    {/* Hover Glow */}
-                                    <div className="absolute inset-0 rounded-lg ring-2 ring-white/0 group-hover:ring-white/20 transition-all"></div>
-                                </div>
-                            </foreignObject>
-                        ))}
+                                </foreignObject>
+                            );
+                        })}
                     </svg>
                 </div>
             </div>

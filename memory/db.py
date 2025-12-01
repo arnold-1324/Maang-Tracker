@@ -376,3 +376,57 @@ def upsert_weakness(topic: str, score: int):
     """Legacy function - no-op in new system"""
     pass
 
+
+def save_user_focus(user_id, topic_data):
+    """Save or update user's current focus topic"""
+    conn = get_conn()
+    cur = conn.cursor()
+    
+    try:
+        cur.execute("""
+            INSERT INTO user_focus (user_id, topic_id, topic_name, topic_emoji, topic_color, set_at)
+            VALUES (?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(user_id) DO UPDATE SET
+                topic_id = excluded.topic_id,
+                topic_name = excluded.topic_name,
+                topic_emoji = excluded.topic_emoji,
+                topic_color = excluded.topic_color,
+                set_at = datetime('now')
+        """, (
+            user_id,
+            topic_data.get('id'),
+            topic_data.get('name'),
+            topic_data.get('emoji'),
+            topic_data.get('color')
+        ))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error saving user focus: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_user_focus(user_id):
+    """Get user's current focus topic"""
+    conn = get_conn()
+    cur = conn.cursor()
+    
+    try:
+        cur.execute("""
+            SELECT topic_id, topic_name, topic_emoji, topic_color
+            FROM user_focus
+            WHERE user_id = ?
+        """, (user_id,))
+        
+        row = cur.fetchone()
+        if row:
+            return {
+                'id': row[0],
+                'name': row[1],
+                'emoji': row[2],
+                'color': row[3]
+            }
+        return None
+    finally:
+        conn.close()

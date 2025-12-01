@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, TrendingDown, Target, BookOpen, Zap } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 interface WeaknessData {
     category: string;
@@ -19,20 +20,37 @@ interface WeaknessData {
 }
 
 export default function WeaknessPage() {
+    const { token, isAuthenticated, isLoading: authLoading } = useAuth();
     const [weaknesses, setWeaknesses] = useState<WeaknessData[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('/api/weakness?user_id=default_user')
-            .then(res => res.json())
-            .then(d => {
-                if (d.success) {
-                    setWeaknesses(d.weaknesses);
-                }
-                setLoading(false);
+        if (!authLoading && isAuthenticated && token) {
+            fetch('/api/weaknesses', {
+                headers: { 'Authorization': `Bearer ${token}` }
             })
-            .catch(() => setLoading(false));
-    }, []);
+                .then(res => res.json())
+                .then(d => {
+                    if (d.success && d.weaknesses) {
+                        // Transform from DB format to component format
+                        const transformed = d.weaknesses.map((w: any) => ({
+                            category: w.weakness_name,
+                            severity: w.severity_score > 7 ? 'High' : w.severity_score > 4 ? 'Medium' : 'Low',
+                            problems_attempted: 0, // TODO: extract from evidence
+                            success_rate: 0, // TODO: extract from evidence
+                            avg_attempts: 0, // TODO: extract from evidence
+                            recommended_problems: [], // TODO: parse from recommendations
+                            improvement_plan: JSON.parse(w.recommendations || '[]')
+                        }));
+                        setWeaknesses(transformed);
+                    }
+                    setLoading(false);
+                })
+                .catch(() => setLoading(false));
+        } else if (!authLoading && !isAuthenticated) {
+            setLoading(false);
+        }
+    }, [token, isAuthenticated, authLoading]);
 
     // Mock data
     const mockWeaknesses: WeaknessData[] = [
