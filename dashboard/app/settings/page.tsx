@@ -15,6 +15,7 @@ export default function SettingsPage() {
     const [leetcodePassword, setLeetcodePassword] = useState('');
 
     // GitHub credentials
+    const [githubUsername, setGithubUsername] = useState('');
     const [githubToken, setGithubToken] = useState('');
 
     const handleSaveLeetCode = async () => {
@@ -56,8 +57,8 @@ export default function SettingsPage() {
     };
 
     const handleSaveGitHub = async () => {
-        if (!githubToken) {
-            setError('Please enter GitHub access token');
+        if (!githubUsername || !githubToken) {
+            setError('Please enter both GitHub username and access token');
             return;
         }
 
@@ -73,7 +74,8 @@ export default function SettingsPage() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    access_token: githubToken,
+                    username: githubUsername,
+                    token: githubToken,
                 }),
             });
 
@@ -182,6 +184,19 @@ export default function SettingsPage() {
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-2">
+                                GitHub Username
+                            </label>
+                            <input
+                                type="text"
+                                value={githubUsername}
+                                onChange={(e) => setGithubUsername(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                                placeholder="Enter your GitHub username"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">
                                 Personal Access Token
                             </label>
                             <input
@@ -217,7 +232,7 @@ export default function SettingsPage() {
                             ) : (
                                 <>
                                     <Save size={20} />
-                                    Save GitHub Token
+                                    Save GitHub Credentials
                                 </>
                             )}
                         </button>

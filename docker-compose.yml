@@ -1,0 +1,243 @@
+services:
+  # ==================== DATABASE ====================
+  postgres:
+    image: postgres:15-bullseye
+    container_name: maang-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-maang_tracker}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./scripts/init-pgvector.sql:/docker-entrypoint-initdb.d/02-pgvector.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - maang-network
+    restart: unless-stopped
+    labels:
+      com.example.description: "PostgreSQL 15 with pgvector extension"
+
+  # ==================== CACHE ====================
+  redis:
+    image: redis:7-alpine
+    container_name: maang-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis-password}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - maang-network
+    restart: unless-stopped
+    labels:
+      com.example.description: "Redis 7 for caching"
+
+  # ==================== DATABASE ADMIN ====================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: maang-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@maang.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      SCRIPT_NAME: /pgadmin
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - maang-network
+    restart: unless-stopped
+    labels:
+      com.example.description: "pgAdmin 4 for database management"
+
+  # ==================== CACHE ADMIN ====================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: maang-redis-commander
+    environment:
+      REDIS_HOSTS: local:${REDIS_HOST:-redis}:${REDIS_PORT:-6379}:0:${REDIS_PASSWORD:-redis-password}
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8081}:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - maang-network
+    restart: unless-stopped
+    labels:
+      com.example.description: "Redis Commander for cache management"
+
+  # ==================== MIGRATIONS ====================
+  migrations:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.app
+    container_name: maang-migrations
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-maang_tracker}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis-password}
+    command: /bin/bash -c "pip install -e . && alembic upgrade head && python -m scripts.init_db"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - maang-network
+    restart: "no"
+    labels:
+      com.example.description: "Database migrations service"
+
+  # ==================== MCP SERVER ====================
+  mcp-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.mcp
+    container_name: maang-mcp-server
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8765
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-maang_tracker}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "${MCP_PORT:-8765}:8765"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - maang-network
+    restart: unless-stopped
+    labels:
+      com.example.description: "MCP Server for external tool integration"
+
+  # ==================== AGENT SERVICE ====================
+  agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.app
+    container_name: maang-agent
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-maang_tracker}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis-password}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      MCP_URL: http://mcp-server:8765
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      RAG_TOP_K: ${RAG_TOP_K:-5}
+      RAG_SIMILARITY_THRESHOLD: ${RAG_SIMILARITY_THRESHOLD:-0.3}
+    command: python -m maang_agent.agent
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mcp-server:
+        condition: service_started
+    networks:
+      - maang-network
+    restart: unless-stopped
+    labels:
+      com.example.description: "MAANG Mentor Agent Service"
+
+  # ==================== DASHBOARD (Next.js) ====================
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dashboard
+      target: production
+    container_name: maang-dashboard
+    environment:
+      NODE_ENV: ${ENVIRONMENT:-development}
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_MCP_URL: http://localhost:8765
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - maang-network
+    restart: unless-stopped
+    labels:
+      com.example.description: "Next.js Dashboard Frontend"
+
+  # ==================== NGINX REVERSE PROXY ====================
+  nginx:
+    image: nginx:alpine
+    container_name: maang-nginx
+    ports:
+      - "${NGINX_PORT:-80}:80"
+      - "${NGINX_SSL_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - dashboard
+      - mcp-server
+    networks:
+      - maang-network
+    restart: unless-stopped
+    labels:
+      com.example.description: "Nginx reverse proxy and load balancer"
+
+networks:
+  maang-network:
+    driver: bridge
+    name: maang-network
+
+volumes:
+  postgres_data:
+    driver: local
+    name: maang-postgres-data
+  redis_data:
+    driver: local
+    name: maang-redis-data
+  pgadmin_data:
+    driver: local
+    name: maang-pgadmin-data

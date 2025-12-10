@@ -1,0 +1,48 @@
+{
+    "application_data": {
+        "status": "Applying - Round 1",
+        "current_focus": "Tailoring Resumes for Microsoft & Amazon",
+        "jobs_shortlist": [
+            {
+                "company": "Microsoft",
+                "role": "Software Engineer II",
+                "location": "Hyderabad/Bangalore",
+                "status": "Ready to Apply",
+                "notes": "Strong distributed systems match. Emphasize Azure/Cloud patterns."
+            },
+            {
+                "company": "Amazon",
+                "role": "SDE II",
+                "location": "Bangalore",
+                "status": "Ready to Apply",
+                "notes": "Payments domain match. Highlight Idempotency and Operational Excellence."
+            },
+            {
+                "company": "Uber",
+                "role": "Backend Engineer II",
+                "location": "Bangalore",
+                "status": "Gap Analysis",
+                "notes": "Needs Go evidence. Complete Go mini-project first."
+            }
+        ]
+    },
+    "tracker_update": {
+        "job_role": "SDE II (Backend)",
+        "new_missing_skills": [
+            "C# (.NET Core) - Optional but helpful for MS",
+            "Production Go - Critical for Uber/Stripe"
+        ],
+        "study_plan_changes": [
+            {
+                "topic": "Go (Golang) Ramp-up",
+                "priority": "High",
+                "action": "Build 'Go-Ledger' service: Gin framework, Postgres, Docker. 1 week."
+            },
+            {
+                "topic": "Microsoft Stack Info",
+                "priority": "Medium",
+                "action": "Read 'Azure Distributed Systems' whitepapers. Map Java concepts to C#."
+            }
+        ]
+    }
+}

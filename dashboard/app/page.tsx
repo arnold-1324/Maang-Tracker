@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Code2, Brain, Target, Trophy, Activity, Settings, RefreshCw,
   AlertTriangle, CheckCircle2, Sparkles, Flame, BookOpen, Zap,
-  TrendingUp, X, Search
+  TrendingUp, X, Search, Download
 } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
@@ -176,13 +176,14 @@ export default function Home() {
   const [currentTopic, setCurrentTopic] = useState<any>(null);
   const [dailyTasks, setDailyTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/login');
       return;
     }
-
 
     // Load current topic from API
     fetchData();
@@ -193,6 +194,19 @@ export default function Home() {
 
     try {
       setLoading(true);
+
+      // Fetch current user info
+      try {
+        const userRes = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const userData = await userRes.json();
+        if (userData.success && userData.user) {
+          setUserEmail(userData.user.email || '');
+        }
+      } catch (e) {
+        console.error("Failed to fetch user info", e);
+      }
 
       // Fetch User Focus
       try {
@@ -318,6 +332,36 @@ export default function Home() {
     }
   };
 
+  const handleDownloadExcel = async () => {
+    setIsDownloading(true);
+    try {
+      const response = await fetch('/api/export/excel', {
+        method: 'GET',
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        a.download = `maang_tracker_export_${timestamp}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        console.error('Export failed');
+        alert('Failed to export database. Please try again.');
+      }
+    } catch (e) {
+      console.error("Download failed", e);
+      alert('Failed to download Excel file. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
@@ -351,6 +395,27 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Excel Export Button - Only for arnold */}
+            {userEmail === 'arnoldgna765@gmail.com' && (
+              <button
+                onClick={handleDownloadExcel}
+                disabled={isDownloading}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 border border-green-500/30 transition-all duration-200 shadow-lg shadow-green-500/20 hover:shadow-green-500/40 disabled:opacity-50 disabled:cursor-not-allowed group"
+                title="Download Database Export (Excel)"
+              >
+                {isDownloading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span className="text-white font-medium text-sm">Exporting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="text-white group-hover:scale-110 transition-transform" size={20} />
+                    <span className="text-white font-medium text-sm">Export DB</span>
+                  </>
+                )}
+              </button>
+            )}
             <button
               onClick={handleSync}
               className="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors group"

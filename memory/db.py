@@ -430,3 +430,23 @@ def get_user_focus(user_id):
         return None
     finally:
         conn.close()
+
+def get_all_job_postings() -> List[Dict]:
+    """Get all crawled job postings"""
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT id, company, title as role, location, 
+                   'Saved' as status, -- Default status for now
+                   description, url, crawled_at, notes
+            FROM job_postings 
+            ORDER BY crawled_at DESC
+        """)
+        rows = cur.fetchall()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        print(f"Error fetching job postings: {e}")
+        return []
+    finally:
+        conn.close()

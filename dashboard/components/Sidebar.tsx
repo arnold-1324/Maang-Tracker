@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Code, TrendingUp, AlertTriangle, Video, Target, BookOpen, ChevronRight, ChevronLeft, Palette, LogOut, Settings } from 'lucide-react';
+import { Home, Code, TrendingUp, AlertTriangle, Video, Target, BookOpen, ChevronRight, ChevronLeft, Palette, LogOut, Settings, Server, Briefcase } from 'lucide-react';
 import { useTheme, Theme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -20,10 +20,12 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     const navItems = [
         { href: '/', label: 'Home', icon: Home },
         { href: '/roadmap', label: 'Roadmap', icon: Target },
+        { href: '/jobs', label: 'Job Search', icon: Briefcase },
         { href: '/training', label: 'Training', icon: BookOpen },
         { href: '/interview', label: 'Interview', icon: Video },
         { href: '/progress', label: 'Progress', icon: TrendingUp },
         { href: '/weakness', label: 'Weakness', icon: AlertTriangle },
+        { href: '/system-design', label: 'System Design', icon: Server },
         { href: '/settings', label: 'Settings', icon: Settings },
     ];
 

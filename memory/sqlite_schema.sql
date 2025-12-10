@@ -168,3 +168,29 @@ CREATE INDEX idx_topic_problems_topic ON topic_problems(topic_id);
 CREATE INDEX idx_weakness_analysis_user ON weakness_analysis(user_id);
 CREATE INDEX idx_cache_expires ON cache_store(expires_at);
 CREATE INDEX idx_cache_user ON cache_store(user_id);
+
+-- Job Postings
+CREATE TABLE IF NOT EXISTS job_postings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company TEXT,
+    title TEXT,
+    location TEXT,
+    url TEXT UNIQUE,
+    description TEXT,
+    source TEXT,
+    crawled_at DATETIME DEFAULT (datetime('now')),
+    notes TEXT
+);
+
+-- Job Applications
+CREATE TABLE IF NOT EXISTS job_applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    job_id INTEGER NOT NULL,
+    status TEXT DEFAULT 'Saved',
+    resume_path TEXT,
+    ats_score REAL,
+    applied_at DATETIME,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (job_id) REFERENCES job_postings(id)
+);

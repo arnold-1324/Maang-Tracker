@@ -1,0 +1,175 @@
+%-------------------------
+% Resume - Arnold Gnanaselvam
+% Clean, ATS-friendly format
+%------------------------
+
+\documentclass[letterpaper,10.5pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Margins
+\addtolength{\oddsidemargin}{-0.6in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1.2in}
+\addtolength{\topmargin}{-.7in}
+\addtolength{\textheight}{1.4in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Section formatting
+\titleformat{\section}{
+  \vspace{-5pt}\scshape\raggedright\large\bfseries
+}{}{0em}{}[\color{black}\titlerule \vspace{-6pt}]
+
+% Custom commands
+\newcommand{\resumeItem}[1]{
+  \item\small{{#1 \vspace{-3pt}}}
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.98\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & \textbf{\small #2} \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-8pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.98\textwidth}{l@{\extracolsep{\fill}}r}
+      \small\textbf{#1} & \textbf{\small #2} \\
+    \end{tabular*}\vspace{-8pt}
+}
+
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.1in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.15in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-6pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \scshape Arnold Gnanaselvam} \\ \vspace{3pt}
+    \small \textit{Software Engineer, Product} \\ \vspace{6pt}
+    \small Cuddalore, Tamil Nadu, India $|$ 
+    +91 9361097319 $|$ 
+    \href{mailto:arnoldgna765@gmail.com}{arnoldgna765@gmail.com} \\
+    \href{https://github.com/arnold-1324}{github.com/arnold-1324} $|$
+    \href{https://linkedin.com/in/arnold-gnanaselvam}{linkedin.com/in/arnold-gnanaselvam}
+\end{center}
+
+%-----------SUMMARY-----------
+\section{Summary}
+\small{Software Engineer passionate about building reliable, scalable systems. Built production microservices and event-driven systems (Java, Node.js) owning features from prototype through deployment. Love debugging distributed systems problems and thinking through edge cases in payments and billing workflows. Quick learner comfortable diving into unfamiliar codebases. Interested in teams where uptime is measured in nines and correctness isn't optional.}
+
+%-----------EXPERIENCE-----------
+\section{Experience}
+  \resumeSubHeadingListStart
+
+    \resumeSubheading
+      {Synthesis Healthsoft Service \& Solutions LLP}{Chennai, India}
+      {Junior Software Developer}{June 2024 -- Present}
+      \resumeItemListStart
+        \resumeItem{Owned product-indexing microservice from design through production—designed schema, added composite indexes and Redis caching to hit <100ms p50 reads serving ~60K daily lookups. Added CI tests that fail when performance regresses.}
+        \resumeItem{Reduced API p50 latency 30\% (140ms→95ms) via schema redesign and targeted indexing. Added CI performance gates to maintain SLAs.}
+        \resumeItem{Built event-driven ingestion system (Kafka-style) with batching, backpressure, replay, and durability guarantees. Integrated into CI for correctness validation before production.}
+        \resumeItem{Ramped up on 50K+ LOC Node.js/Java codebase in first month. Now comfortable jumping between unfamiliar services to debug issues or add features.}
+        \resumeItem{Led code review practices: enforced PR checklist (tests, docs, metrics), mentored peers, improved merge quality. Write detailed reviews assuming reviewers need full context.}
+        \resumeItem{Implemented JWT auth, unit/integration tests, and CI gating. Decreased post-merge incidents. Defined SLOs, added monitoring dashboards, and participated in incident postmortems.}
+        \resumeItem{Collaborated with product and frontend teams to iterate prototypes and launch betas. Shipped 3 features to GA after incorporating user feedback.}
+        \resumeItem{Exploring open-source projects we depend on—reading code to understand behavior and planning to contribute learnings back upstream.}
+      \resumeItemListEnd
+
+  \resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Bishop Heber College, Bharathidasan University}{Cuddalore, Tamil Nadu}
+      {Bachelor of Science in Computer Science}{Aug 2021 -- Apr 2024}
+  \resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+    \resumeSubHeadingListStart
+    
+      \resumeProjectHeading
+          {\textbf{Inventory Index \& Ingestion Prototype} $|$ \emph{Node.js, Redis, Elasticsearch, CI/CD}}{2024}
+          \resumeItemListStart
+            \resumeItem{Built Node.js + Redis + Elasticsearch pipeline maintaining <100ms p50 reads during heavy writes. Simulated failure scenarios (node crashes, event replay, partial failures) and validated graceful recovery. Integrated performance tests into CI.}
+          \resumeItemListEnd
+          
+      \resumeProjectHeading
+          {\textbf{Distributed Caching System} $|$ \emph{Java, TCP/IP, P2P} $|$ \href{https://github.com/arnold-1324/distributed-cache}{GitHub}}{2024}
+          \resumeItemListStart
+            \resumeItem{P2P cache in Java with replication and eventual consistency. Tested under chaotic conditions (node crashes, network delays, split-brain). Measured lookup latency and replication lag under failure modes. Clean interfaces with comprehensive docs.}
+          \resumeItemListEnd
+          
+      \resumeProjectHeading
+          {\textbf{Real-Time Chat App} $|$ \emph{React, Node.js, MongoDB, Socket.io, WebSockets}}{2023}
+          \resumeItemListStart
+            \resumeItem{WebSocket service with group/private messaging, presence tracking, and reconnection logic. Implemented message delivery guarantees and ordering under disconnections.}
+          \resumeItemListEnd
+          
+    \resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.1in, label={}]
+    \small{\item{
+     \textbf{Languages:} Java, Python, JavaScript, TypeScript, Node.js | Learning: Ruby, Go \\
+     \textbf{Backend:} Spring Boot, Express, RESTful APIs, Microservices, Distributed systems \\
+     \textbf{Data:} PostgreSQL, MySQL, Redis, Elasticsearch, schema/index optimization \\
+     \textbf{Messaging:} Kafka, RabbitMQ, Event-driven architecture \\
+     \textbf{Cloud \& Infra:} AWS (EC2, Lambda, RDS, S3), Docker, Kubernetes, CI/CD (GitHub Actions, Jenkins) \\
+     \textbf{Practices:} Git, code review, PR checklists, feature flags, monitoring, incident response, cross-functional collaboration, technical writing, backward compatibility \\
+     \textbf{Domain:} Payments, Subscriptions, Billing, Retry/Idempotency patterns, HTTP/REST contract stability, JWT/OAuth
+    }}
+ \end{itemize}
+
+%-----------ACHIEVEMENTS-----------
+\section{Achievements}
+    \resumeSubHeadingListStart
+      \resumeProjectHeading
+          {\textbf{API Performance}}{2024}
+          \resumeItemListStart
+            \resumeItem{Improved p50 by 30\% serving 60K+ daily requests via schema redesign and indexing. Added CI gates preventing regressions.}
+          \resumeItemListEnd
+      \resumeProjectHeading
+          {\textbf{System Design}}{2024}
+          \resumeItemListStart
+            \resumeItem{Designed high-throughput ingestion prototype validated for durability under simulated load and failure scenarios.}
+          \resumeItemListEnd
+      \resumeProjectHeading
+          {\textbf{Collaboration}}{2024}
+          \resumeItemListStart
+            \resumeItem{Shipped 3 beta features to GA working with product/frontend teams, iterating on user feedback.}
+          \resumeItemListEnd
+    \resumeSubHeadingListEnd
+
+%-----------LEARNING & INTERESTS-----------
+\section{Learning \& Interests}
+\small{Actively learning Ruby/Go. Reading Stripe API docs and Increment magazine. Deep interest in payment systems reliability: idempotency, retry logic, reconciliation. Following distributed systems research: consensus algorithms, event sourcing, CQRS.}
+
+\end{document}

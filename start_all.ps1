@@ -2,37 +2,64 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "Starting MAANG Tracker Ecosystem..." -ForegroundColor Cyan
 
-# Function to start a process
+# ---- REAL Git Bash path ----
+$GitBash = "C:\Users\80133\scoop\apps\git\2.48.1\git-bash.exe"
+
+if (!(Test-Path $GitBash)) {
+    throw "Git Bash not found at: $GitBash"
+}
+
+# ---- Function ----
 function Start-Service {
-    param($Name, $Command, $Args, $Dir)
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$Command,
+        [Parameter(Mandatory = $true)][string[]]$Args,
+        [Parameter(Mandatory = $true)][string]$Dir
+    )
+
     Write-Host "Starting $Name..." -ForegroundColor Yellow
-    Start-Process $Command -ArgumentList $Args -WorkingDirectory $Dir
+
+    if ($Args -eq $null -or $Args.Count -eq 0) {
+        throw "Missing argument list for: $Name"
+    }
+
+    if (!(Test-Path $Dir)) {
+        throw "Directory not found: $Dir"
+    }
+
+    Start-Process -FilePath $Command -ArgumentList $Args -WorkingDirectory $Dir
 }
 
 $Root = $PSScriptRoot
 
-# 1. Start MCP Server
-Start-Service "MCP Server" "python" "mcp_server/server.py" $Root
+# ---- SERVICES ----
 
-# 2. Start Backend Dashboard
-Start-Service "Backend Dashboard" "python" "ui/dashboard.py" $Root
+# 1. MCP Server (Python)
+Start-Service `
+    -Name "MCP Server" `
+    -Command "py" `
+    -Args @("mcp_server/http_wrapper.py") `
+    -Dir $Root
 
-# 3. Start Frontend (Next.js)
-# Ensure we bind to 0.0.0.0 for LAN access (already in package.json)
-Start-Service "Frontend" "cmd" "/k npm run dev" "$Root\dashboard"
+# 2. Backend Dashboard (Python)
+Start-Service `
+    -Name "Backend Dashboard" `
+    -Command "py" `
+    -Args @("ui/dashboard.py") `
+    -Dir $Root
 
-# 4. Start P2P Tunnel Host (for external access)
-if (Test-Path "$Root\p2p-tunnel") {
-    Start-Service "P2P Tunnel Host" "cmd" "/k npm run host" "$Root\p2p-tunnel"
-} else {
-    Write-Host "P2P Tunnel not found, skipping." -ForegroundColor Red
-}
+# 3. Frontend (Next.js) — Git Bash
+Start-Service `
+    -Name "Frontend (Next.js)" `
+    -Command $GitBash `
+    -Args @("--login", "-c", "npm run dev") `
+    -Dir "$Root\dashboard"
 
-Write-Host "`nAll services launching..." -ForegroundColor Green
-Write-Host "------------------------------------------------"
-Write-Host "Local Access:     http://localhost:3000"
-Write-Host "LAN Access:       http://<YOUR_IP>:3000"
-Write-Host "P2P Tunnel:       Active (Check tunnel window)"
-Write-Host "------------------------------------------------"
-Write-Host "Press Enter to exit this launcher (services will keep running)."
-Read-Host
+Write-Host "`nAll services launched!" -ForegroundColor Green
+Write-Host "----------------------------------------------"
+Write-Host "Frontend:   http://localhost:3000"
+Write-Host "Backend:    Running"
+Write-Host "MCP:        http://localhost:8765"
+Write-Host "----------------------------------------------"
+Read-Host "Press Enter to exit"

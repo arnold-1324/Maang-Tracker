@@ -1,0 +1,66 @@
+% --------------------------
+% Arnold Gnanaselvam — Resume (Targeting Microsoft Software Engineer II - Azure/Cloud)
+% Highlights: Java, C# ability, Distributed Systems, Reliability
+% --------------------------
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=0.6in]{geometry}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{fontspec}
+\setmainfont{Arial}
+\titleformat{\section}{\large\bfseries}{}{0em}{}\renewcommand{\familydefault}{\sfdefault}
+
+\begin{document}
+% Header
+{\LARGE \textbf{Arnold Gnanaselvam}}\\
+Cuddalore, Tamil Nadu, India \quad | \quad +91 9361097319 \quad | \quad \href{mailto:arnoldgna765@gmail.com}{arnoldgna765@gmail.com}\\
+\href{https://github.com/arnold-1324}{github.com/arnold-1324} \quad | \quad \href{https://leetcode.com/u/arnold/}{leetcode.com/u/arnold/}
+
+\vspace{6pt}
+\hrule
+\vspace{6pt}
+
+\section*{Summary}
+Backend software engineer specializing in **Distributed Systems** and **Cloud Services**. Experienced in building scalable ($<$100ms latency) microservices and reliable ingestion pipelines. Strong foundation in object-oriented design (Java) with readiness to adapt to C#/.NET environments. Skilled in ensuring system reliability through observability, SLO definition, and chaos engineering testing.
+
+\section*{Experience}
+\textbf{Synthesis Healthsoft Service \& Solutions LLP} \hfill June 2024 -- Present\\
+\textit{Junior Software Developer} \hfill Chennai, India
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Scalable Microservices}: Designed and deployed a high-performance indexing service handling 60K daily requests with sub-100ms latency.
+  \item \textbf{Reliability Engineering}: Implemented CI/CD performance gates and comprehensive monitoring to protect service SLAs; led post-incident reviews to drive structural fixes.
+  \item \textbf{Data Consistency}: Built an event-driven ingestion pipeline ensuring data durability and correctness through batching and backpressure mechanisms.
+  \item \textbf{Engineering Rigor}: Reduced production incidents by enforcing strict code review checklists (tests, docs, metrics) and mentoring peers on quality standards.
+\end{itemize}
+
+\section*{Technical Projects}
+\textbf{Distributed Caching System} \hfill \textit{Java, TCP/IP, P2P}
+\begin{itemize}[leftmargin=*]
+  \item Developed a peer-to-peer cache demonstrating **eventual consistency** and replication strategies relevant to large-scale cloud storage.
+  \item Tested system resilience against network partitions (Split-brain) and node failures, ensuring high availability.
+\end{itemize}
+
+\textbf{Resilient Ingestion Pipeline} \hfill \textit{Node.js, Redis, Elasticsearch}
+\begin{itemize}[leftmargin=*]
+  \item Architected a fault-tolerant ingestion system capable of graceful recovery and event replay under load.
+  \item Integrated automated performance tests into the build pipeline to detect latency regressions early.
+\end{itemize}
+
+\section*{Technical Skills}
+\begin{tabular}{p{0.3\linewidth} p{0.65\linewidth}}
+\textbf{Languages:} & Java, Python, JavaScript/TypeScript (Open to C#/.NET) \\
+\textbf{Backend & Systems:} & Microservices, Distributed Caching, Event-Driven Architecture \\
+\textbf{Database:} & SQL (PostgreSQL), NoSQL (Redis, Elasticsearch) \\
+\textbf{Cloud & Ops:} & AWS, Azure concepts, Docker, Kubernetes, CI/CD \\
+\textbf{Quality:} & Unit/Integration Testing, SLOs/SLIs, Incident Management \\
+\end{tabular}
+
+\section*{Education}
+\textbf{B.Sc. Computer Science} \hfill Bishop Heber College (2021--2024)
+
+\section*{Continuous Learning}
+Actively learning **Go** and studying **Distributed Consensus** (Paxos/Raft) to deepen understanding of cloud-native infrastructure.
+
+\end{document}

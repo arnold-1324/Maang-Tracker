@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeetCode Session Setup - MAANG Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .help-text a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .help-text a:hover {
+            text-decoration: underline;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .instructions {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 25px;
+        }
+        
+        .instructions h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+            color: #555;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .instructions li {
+            margin-bottom: 5px;
+        }
+        
+        .current-session {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .current-session h3 {
+            color: #0066cc;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .session-info {
+            font-size: 13px;
+            color: #333;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 LeetCode Integration</h1>
+        <p class="subtitle">Connect your LeetCode account to track your progress</p>
+        
+        <div id="status" class="status"></div>
+        
+        <div id="currentSession" class="current-session" style="display: none;">
+            <h3>✅ Connected</h3>
+            <div class="session-info">
+                <strong>Username:</strong> <span id="currentUsername"></span>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 How to get your Session ID:</h3>
+            <ol>
+                <li>Login to <a href="https://leetcode.com" target="_blank">leetcode.com</a></li>
+                <li>Press <strong>F12</strong> to open DevTools</li>
+                <li>Go to <strong>Application</strong> tab → <strong>Cookies</strong> → <strong>https://leetcode.com</strong></li>
+                <li>Find <strong>LEETCODE_SESSION</strong> and copy its value</li>
+                <li>Paste below and click "Save & Test"</li>
+            </ol>
+        </div>
+        
+        <form id="sessionForm">
+            <div class="form-group">
+                <label for="username">LeetCode Username</label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    placeholder="your-username" 
+                    required
+                >
+                <div class="help-text">Your LeetCode username (visible in your profile URL)</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="sessionId">Session ID (LEETCODE_SESSION cookie)</label>
+                <input 
+                    type="password" 
+                    id="sessionId" 
+                    placeholder="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..." 
+                    required
+                >
+                <div class="help-text">
+                    The value of your LEETCODE_SESSION cookie 
+                    <a href="https://github.com/arnold-1324/Maang-Tracker/blob/main/LEETCODE_SESSION_SETUP.md" target="_blank">Need help?</a>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button type="submit" class="btn-primary" id="saveBtn">
+                    Save & Test
+                </button>
+                <button type="button" class="btn-secondary" id="testBtn">
+                    Test Only
+                </button>
+                <button type="button" class="btn-danger" id="clearBtn" style="display: none;">
+                    Clear Session
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:5100';
+        
+        // Check for existing session on load
+        async function checkSession() {
+            try {
+                const response = await fetch(`${API_BASE}/api/leetcode/session`);
+                const result = await response.json();
+                
+                if (result.success && result.data.has_session) {
+                    document.getElementById('currentSession').style.display = 'block';
+                    document.getElementById('currentUsername').textContent = result.data.username;
+                    document.getElementById('username').value = result.data.username;
+                    document.getElementById('clearBtn').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error checking session:', error);
+            }
+        }
+        
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            statusEl.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 5000);
+            }
+        }
+        
+        function setLoading(button, loading) {
+            if (loading) {
+                button.disabled = true;
+                button.innerHTML += '<span class="loading"></span>';
+            } else {
+                button.disabled = false;
+                const loadingEl = button.querySelector('.loading');
+                if (loadingEl) loadingEl.remove();
+            }
+        }
+        
+        // Test session
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            const username = document.getElementById('username').value.trim();
+            const sessionId = document.getElementById('sessionId').value.trim();
+            
+            if (!username || !sessionId) {
+                showStatus('Please enter both username and session ID', 'error');
+                return;
+            }
+            
+            const btn = document.getElementById('testBtn');
+            setLoading(btn, true);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/leetcode/test-session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, session_id: sessionId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    const stats = result.stats;
+                    showStatus(
+                        `✅ Valid session! Found ${stats.problems_solved.all || 0} problems solved.`,
+                        'success'
+                    );
+                } else {
+                    showStatus(`❌ ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Connection error: ${error.message}`, 'error');
+            } finally {
+                setLoading(btn, false);
+            }
+        });
+        
+        // Save session
+        document.getElementById('sessionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const sessionId = document.getElementById('sessionId').value.trim();
+            
+            const btn = document.getElementById('saveBtn');
+            setLoading(btn, true);
+            
+            try {
+                // First test the session
+                const testResponse = await fetch(`${API_BASE}/api/leetcode/test-session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, session_id: sessionId })
+                });
+                
+                const testResult = await testResponse.json();
+                
+                if (!testResult.success) {
+                    showStatus(`❌ Invalid session: ${testResult.error}`, 'error');
+                    setLoading(btn, false);
+                    return;
+                }
+                
+                // If valid, save it
+                const saveResponse = await fetch(`${API_BASE}/api/leetcode/session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, session_id: sessionId })
+                });
+                
+                const saveResult = await saveResponse.json();
+                
+                if (saveResult.success) {
+                    showStatus('✅ Session saved successfully! You can now use LeetCode integration.', 'success');
+                    document.getElementById('currentSession').style.display = 'block';
+                    document.getElementById('currentUsername').textContent = username;
+                    document.getElementById('clearBtn').style.display = 'block';
+                    document.getElementById('sessionId').value = '';
+                } else {
+                    showStatus(`❌ Failed to save: ${saveResult.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Connection error: ${error.message}`, 'error');
+            } finally {
+                setLoading(btn, false);
+            }
+        });
+        
+        // Clear session
+        document.getElementById('clearBtn').addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to clear your LeetCode session?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/leetcode/session`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus('Session cleared successfully', 'info');
+                    document.getElementById('currentSession').style.display = 'none';
+                    document.getElementById('username').value = '';
+                    document.getElementById('sessionId').value = '';
+                    document.getElementById('clearBtn').style.display = 'none';
+                }
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Check session on load
+        checkSession();
+    </script>
+</body>
+</html>

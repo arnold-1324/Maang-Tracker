@@ -13,7 +13,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from flask import Flask, render_template_string, request, redirect, url_for, jsonify, send_from_directory
 from memory.db import (
     init_db, create_user, authenticate_user, get_user_by_id,
-    save_user_credentials, get_user_credentials, CacheManager
+    save_user_credentials, get_user_credentials, CacheManager,
+    get_weaknesses, get_all_job_postings
 )
 import subprocess
 import threading
@@ -60,13 +61,13 @@ def require_auth(f):
     return decorated_function
 
 # Try to register training blueprint if available
-try:
-    from dashboard.app.training.routes import training_bp
-    app.register_blueprint(training_bp)
-    print("[OK] Training blueprint registered successfully")
-except Exception as e:
-    # If the module doesn't exist yet, just log a warning
-    print(f"[WARN] Warning: Training routes not available: {e}")
+# try:
+#     from dashboard.app.training.routes import training_bp
+#     app.register_blueprint(training_bp)
+#     print("[OK] Training blueprint registered successfully")
+# except Exception as e:
+#     # If the module doesn't exist yet, just log a warning
+#     print(f"[WARN] Warning: Training routes not available: {e}")
 
 # Try to register interview blueprint if available
 socketio_instance = None
@@ -747,14 +748,11 @@ def get_topic_details_api():
         # Get all mastery records
         mastery = memory.get_problem_mastery(user_id)
         
-        # Filter by topic (using simple string matching or category mapping)
-        # In a real app, we'd have a better mapping. For now, we'll search in problem name or category
         topic_problems = []
         
-        # Mock data for demonstration if DB is empty or no matches
+        # Mock data/fallback if DB is empty for demo/testing
         if not mastery:
-             # Return some mock data for UI testing
-            if topic == "Two Pointers" or topic == "Arrays & Hashing":
+            if topic in ["Two Pointers", "Arrays & Hashing", "Arrays"]:
                 topic_problems = [
                     {
                         "problem_id": "two-sum",
@@ -763,57 +761,81 @@ def get_topic_details_api():
                         "difficulty": "Easy",
                         "starred": True,
                         "code": "class Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        seen = {}\n        for i, num in enumerate(nums):\n            diff = target - num\n            if diff in seen:\n                return [seen[diff], i]\n            seen[num] = i",
-                        "notes": "Used a hash map to store complements. Time complexity O(n), Space O(n). Key insight: x + y = target -> y = target - x.",
-                        "language": "python"
-                    },
-                    {
-                        "problem_id": "container-most-water",
-                        "problem_name": "Container With Most Water",
-                        "solved": True,
-                        "difficulty": "Medium",
-                        "starred": False,
-                        "code": "class Solution:\n    def maxArea(self, height: List[int]) -> int:\n        l, r = 0, len(height) - 1\n        res = 0\n        while l < r:\n            res = max(res, min(height[l], height[r]) * (r - l))\n            if height[l] < height[r]:\n                l += 1\n            else:\n                r -= 1\n        return res",
-                        "notes": "Greedy approach with two pointers moving inwards. Always move the shorter pointer because moving the taller one can only decrease the area.",
-                        "language": "python"
-                    },
-                    {
-                        "problem_id": "valid-palindrome",
-                        "problem_name": "Valid Palindrome",
-                        "solved": False,
-                        "difficulty": "Easy",
-                        "starred": False,
-                        "code": "",
-                        "notes": "",
-                        "language": "python"
-                    },
-                    {
-                        "problem_id": "3sum",
-                        "problem_name": "3Sum",
-                        "solved": False,
-                        "difficulty": "Medium",
-                        "starred": True,
-                        "code": "",
-                        "notes": "",
-                        "language": "python"
-                    },
-                    {
-                        "problem_id": "trapping-rain-water",
-                        "problem_name": "Trapping Rain Water",
-                        "solved": False,
-                        "difficulty": "Hard",
-                        "starred": False,
-                        "code": "",
-                        "notes": "",
+                        "notes": "Used a hash map to store complements. Time complexity O(n).",
                         "language": "python"
                     }
                 ]
-        
+        else:
+            # Real DB Filter logic
+            for m in mastery:
+                # Basic check - normally check category
+                topic_problems.append({
+                    "problem_id": m.get("problem_id"),
+                    "problem_name": m.get("problem_name", m.get("problem_id")), 
+                    "solved": True,
+                    "difficulty": "Medium", # Placeholder if not stored
+                    "starred": False,
+                    "last_practiced": m.get("last_practiced")
+                 })
+                 
         return jsonify({
-            "success": True,
-            "topic": topic,
-            "problems": topic_problems
+            "success": True, 
+            "problems": topic_problems,
+            "topic": topic
         })
+
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/jobs", methods=["GET"])
+def get_jobs_api():
+    """Get job matches and status"""
+    try:
+        import json
+        import os
+        
+        # 1. Get legacy JSON data
+        data = { "application_data": { "jobs_shortlist": [] } }
+        job_file_path = os.path.join(os.getcwd(), 'tracker', 'job_matches.json')
+        
+        if os.path.exists(job_file_path):
+            with open(job_file_path, 'r') as f:
+                json_data = json.load(f)
+                if json_data:
+                    data = json_data
+        
+        # 2. Get DB jobs
+        db_jobs = get_all_job_postings()
+        
+        # 3. Merge (Simple append for now, could dedup by URL)
+        current_list = data.get("application_data", {}).get("jobs_shortlist", [])
+        
+        # Add DB jobs if they aren't duplicates (check by URL or Company+Role)
+        existing_urls = set(j.get('url') for j in current_list if j.get('url'))
+        
+        for job in db_jobs:
+            if not job.get('url') or job.get('url') not in existing_urls:
+                # Ensure structure matches UI expectations
+                current_list.append({
+                    "id": job['id'], # Use DB ID
+                    "company": job['company'],
+                    "role": job['role'],
+                    "location": job['location'] or "Remote",
+                    "status": job['status'],
+                    "notes": job['notes'] or "Crawled Job",
+                    "url": job['url'],
+                    "description": job['description'] # Crucial for ATS
+                })
+                
+        data["application_data"]["jobs_shortlist"] = current_list
+
+        return jsonify({"success": True, "data": data})
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/compiler/run", methods=["POST"])
@@ -838,165 +860,339 @@ def run_code_api():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route("/api/compiler/submit", methods=["POST"])
-def submit_code_api():
-    """Submit code and run against test cases"""
-    data = request.json
-    code = data.get("code", "")
-    language = data.get("language", "python")
-    problem_id = data.get("problem_id", "")
-    test_cases = data.get("test_cases", [])
-    
-    try:
-        from interview.compiler import InterviewCodeValidator
-        validator = InterviewCodeValidator()
-        result = validator.validate_solution(code, language, problem_id, test_cases)
+@app.route("/api/jobs/crawl", methods=["POST"])
+def crawl_job_api():
+    """Crawl job details from URL"""
+    url = request.json.get("url")
+    if not url:
+        return jsonify({"success": False, "error": "URL required"}), 400
         
-        # If successful, update progress in memory
-        if result["metrics"]["all_tests_passed"]:
-            user_id = data.get("user_id", "default_user")
-            from maang_agent.memory_persistence import get_memory_manager
-            memory = get_memory_manager()
-            # Infer category/name from problem_id or pass it in
-            memory.track_problem_attempt(
-                user_id=user_id,
-                problem_id=problem_id,
-                problem_name=data.get("problem_name", "Unknown Problem"),
-                category=data.get("category", "General"),
-                time_to_solve_minutes=5, # Placeholder
-                optimal_solution_found=True
-            )
+    try:
+        from services.job_crawler import JobCrawler
+        crawler = JobCrawler()
+        result = crawler.fetch_job_details(url)
+        
+        if result["success"]:
+            # Optional: Auto-save if requested
+            if request.json.get("save", False):
+                job_id = crawler.save_job(result["data"])
+                result["data"]["id"] = job_id
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/jobs/auto-search", methods=["POST"])
+def auto_search_jobs_api():
+    """Automatically search for jobs based on resume keywords"""
+    data = request.json
+    keywords = data.get("keywords", "Software Engineer")
+    location = data.get("location", "Remote")
+
+    try:
+        from services.job_crawler import JobCrawler
+        crawler = JobCrawler()
+        
+        results = crawler.search_jobs(keywords, location)
+        
+        # Save all found jobs to DB automatically
+        saved_jobs = []
+        for job in results:
+            job_id = crawler.save_job(job)
+            if job_id:
+                job['id'] = job_id
+                saved_jobs.append(job)
             
+        return jsonify({"success": True, "count": len(saved_jobs), "jobs": saved_jobs})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/jobs/auto-apply", methods=["POST"])
+def auto_apply_job_api():
+    """Apply for a job with tracking and email confirmation"""
+    data = request.json
+    job_id = data.get("job_id")
+    user_email = data.get("user_email", "arnold.gnanaselvam@example.com")  # Default for demo
+    
+    if not job_id:
+        return jsonify({"success": False, "error": "Job ID required"}), 400
+        
+    try:
+        from services.application_tracker import ApplicationTracker
+        from memory.db import get_conn
+        
+        # Get job details
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM job_postings WHERE id = ?", (job_id,))
+        job_row = cur.fetchone()
+        conn.close()
+        
+        if not job_row:
+            return jsonify({"success": False, "error": "Job not found"}), 404
+        
+        job_data = {
+            "id": job_row['id'],
+            "company": job_row['company'],
+            "role": job_row['title'],
+            "location": job_row['location'] or "Remote",
+            "url": job_row['url']
+        }
+        
+        # Initialize tracker
+        tracker = ApplicationTracker()
+        
+        # Record application
+        app_record = tracker.record_application(
+            job_data=job_data,
+            resume_path="resumes/optimized_resume.pdf",  # Would be actual path
+            ats_score=data.get("ats_score", 85.0)
+        )
+        
+        if not app_record:
+            return jsonify({"success": False, "error": "Failed to record application"}), 500
+        
+        # Send confirmation email
+        email_sent = tracker.send_confirmation_email(
+            user_email=user_email,
+            job_data=job_data,
+            tracking_id=app_record['tracking_id']
+        )
+        
         return jsonify({
-            "success": True,
-            "validation": result
+            "success": True, 
+            "status": "Applied",
+            "message": f"Application submitted successfully. {'Confirmation email sent.' if email_sent else 'Email pending.'}",
+            "tracking_id": app_record['tracking_id'],
+            "application_id": app_record['application_id'],
+            "applied_at": app_record['applied_at']
         })
     except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route("/api/applications/status/<tracking_id>", methods=["GET"])
+def get_application_status_api(tracking_id):
+    """Get application status by tracking ID"""
+    try:
+        from services.application_tracker import ApplicationTracker
+        
+        tracker = ApplicationTracker()
+        status = tracker.get_application_status(tracking_id)
+        
+        if status:
+            return jsonify({"success": True, "data": status})
+        else:
+            return jsonify({"success": False, "error": "Application not found"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route("/api/progress", methods=["GET"])
-def get_progress_api():
-    """Get user progress analytics using RAG and AI"""
-    user_id = request.args.get("user_id", "default_user")
+@app.route("/api/applications", methods=["GET"])
+def get_all_applications_api():
+    """Get all applications for the user"""
+    try:
+        from services.application_tracker import ApplicationTracker
+        
+        tracker = ApplicationTracker()
+        applications = tracker.get_all_applications(user_id=1)  # Default user
+        
+        return jsonify({"success": True, "data": applications})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/resume/generate-pdf", methods=["POST"])
+def generate_resume_pdf_api():
+    """Generate PDF from LaTeX resume content"""
+    data = request.json
+    latex_content = data.get("latex_content")
+    job_title = data.get("job_title", "")
+    
+    if not latex_content:
+        return jsonify({"success": False, "error": "LaTeX content required"}), 400
     
     try:
-        from maang_agent.memory_persistence import get_memory_manager
-        from maang_agent.agent import get_mentor
+        from services.latex_pdf_converter import LatexToPdfConverter
+        from datetime import datetime
         
-        memory = get_memory_manager()
+        converter = LatexToPdfConverter()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # Get all progress data from memory
-        mastery = memory.get_problem_mastery(user_id)
-        topics = memory.get_topic_coverage(user_id)
+        pdf_path = converter.generate_resume_pdf(
+            latex_content=latex_content,
+            job_title=job_title,
+            timestamp=timestamp
+        )
         
-        # Calculate metrics from real data
-        total_problems = 350  # Total problems in curriculum
-        solved_problems = len([m for m in mastery if m.get('optimal_solution_found')]) if mastery else 0
-        
-        # Count problems attempted (even if not optimally solved)
-        attempted_problems = len(mastery) if mastery else 0
-        
-        # Calculate topic mastery
-        topics_mastered = len([t for t in topics if t.get('proficiency_level', 0) >= 3]) if topics else 0
-        total_topics = max(len(topics), 20) if topics else 20
-        
-        # Get weak and strong areas from actual data
-        weak_areas = []
-        strong_areas = []
-        
-        if topics:
-            # Sort topics by proficiency
-            sorted_topics = sorted(topics, key=lambda x: x.get('proficiency_level', 0))
-            weak_areas = [t['topic'] for t in sorted_topics if t.get('proficiency_level', 0) < 2][:3]
-            strong_areas = [t['topic'] for t in sorted(topics, key=lambda x: x.get('proficiency_level', 0), reverse=True) if t.get('proficiency_level', 0) >= 3][:3]
-        
-        # If no data, provide defaults
-        if not weak_areas:
-            weak_areas = ["Dynamic Programming", "Graph Algorithms", "Backtracking"]
-        if not strong_areas:
-            strong_areas = ["Arrays", "Hash Maps", "Two Pointers"]
-        
-        # Get AI-powered recommendations
-        try:
-            mentor = get_mentor(user_id)
+        if pdf_path:
+            # Return file path for download
+            return jsonify({
+                "success": True,
+                "pdf_path": pdf_path,
+                "filename": os.path.basename(pdf_path),
+                "message": "PDF generated successfully"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "PDF generation failed. Check server logs for details."
+            }), 500
             
-            # Use RAG context to generate personalized recommendations
-            rag_context = memory.get_rag_context(
-                user_id=user_id,
-                query="What should I focus on next in my interview preparation?",
-                limit=10
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/resume/download/<path:filename>", methods=["GET"])
+def download_resume_pdf(filename):
+    """Download generated PDF resume"""
+    try:
+        from flask import send_file
+        pdf_dir = os.path.join(os.getcwd(), "resumes", "generated")
+        file_path = os.path.join(pdf_dir, filename)
+        
+        if os.path.exists(file_path):
+            return send_file(
+                file_path,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=filename
             )
-            
-            # Build AI prompt for recommendations
-            context_info = f"User has solved {solved_problems} problems, mastered {topics_mastered} topics. "
-            context_info += f"Weak areas: {', '.join(weak_areas)}. Strong areas: {', '.join(strong_areas)}."
-            
-            recommendations = [
-                f"Priority: Focus on {weak_areas[0]} - you've shown less progress here",
-                f"Strengthen your {weak_areas[1] if len(weak_areas) > 1 else 'algorithmic thinking'} skills with daily practice",
-                f"Maintain your strong performance in {strong_areas[0] if strong_areas else 'core topics'} with periodic review"
-            ]
-            
-        except Exception as e:
-            print(f"AI recommendation error: {e}")
-            recommendations = [
-                "Focus on consistency - solve at least 2 problems daily",
-                "Review your weak areas before attempting new topics",
-                "Practice explaining your solutions out loud"
-            ]
+        else:
+            return jsonify({"success": False, "error": "File not found"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/resume/analyze", methods=["POST"])
+def analyze_resume_api():
+    """Analyze resume text against job description"""
+    data = request.json
+    resume_text = data.get("resume_text", "")
+    job_description = data.get("job_description", "")
+    
+    # If the resume text is the mock string, try to load the actual file content instead
+    if "Experienced Backend Engineer" in resume_text or not resume_text:
+        try:
+             import os
+             base_resume_path = os.path.join(os.getcwd(), 'resume_arnold_sde.tex')
+             if os.path.exists(base_resume_path):
+                 with open(base_resume_path, 'r', encoding='utf-8') as f:
+                     resume_text = f.read()
+        except Exception:
+            pass # Fallback to provided text
+
+    if not resume_text or not job_description:
+        return jsonify({"success": False, "error": "Both resume text and job description are required"}), 400
         
-        # Calculate overall mastery percentage
-        overall_mastery = min(100, (solved_problems / max(1, total_problems)) * 100) if solved_problems > 0 else 0
+    try:
+        from services.resume_analyzer import Resumeanalyzer
+        analyzer = Resumeanalyzer()
+        analysis = analyzer.analyze_resume(resume_text, job_description)
         
         return jsonify({
             "success": True,
+            "analysis": analysis
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/resume/optimize", methods=["POST"])
+def optimize_resume_api():
+    """Generate optimized resume LaTeX"""
+    data = request.json
+    missing_skills = data.get("missing_skills", [])
+    job_description = data.get("job_description", "") # Needed for re-scoring check
+
+    try:
+        from services.resume_analyzer import Resumeanalyzer
+        import os
+
+        analyzer = Resumeanalyzer()
+
+        # Load base resume
+        base_resume_path = os.path.join(os.getcwd(), 'resume_arnold_sde.tex')
+        if not os.path.exists(base_resume_path):
+             return jsonify({"success": False, "error": "Base resume not found"}), 404
+
+        with open(base_resume_path, 'r', encoding='utf-8') as f:
+            original_latex = f.read()
+
+        # Optimize
+        optimized_latex = analyzer.optimize_resume_latex(original_latex, missing_skills)
+
+        # Calculate Projected Score
+        jd_keywords = analyzer._extract_skills(job_description.lower())
+        total_skills = len(jd_keywords)
+
+        original_analysis = analyzer.analyze_resume(original_latex, job_description)
+        original_score = original_analysis['score']
+
+        new_matches = original_analysis['matched_keywords'] + missing_skills
+        new_matches = list(set(new_matches)) 
+
+        if total_skills > 0:
+            new_score = (len(new_matches) / total_skills) * 100
+            new_score = min(100, new_score) 
+            new_score = round(new_score, 1)
+        else:
+            new_score = 95.0 
+
+        return jsonify({
+            "success": True,
             "data": {
-                "overall_mastery": round(overall_mastery, 1),
-                "problems_solved": solved_problems,
-                "total_problems": total_problems,
-                "topics_mastered": topics_mastered,
-                "total_topics": total_topics,
-                "avg_time_per_problem": 25,  # TODO: Calculate from actual timing data
-                "interview_sessions": len([m for m in mastery if m.get('interview_mode')]) if mastery else 0,
-                "weak_areas": weak_areas,
-                "strong_areas": strong_areas,
-                "weak_areas": weak_areas,
-                "strong_areas": strong_areas,
-                "recommendations": recommendations,
-                "recent_activity": [
-                    {
-                        "date": a.get('date', ''), 
-                        "topic": "General Practice", # Analytics doesn't store topic per day yet
-                        "problems_solved": a.get('problems_solved', 0),
-                        "time_spent": a.get('time_spent_minutes', 0)
-                    } for a in memory.get_progress_analytics(user_id, days=7)
-                ] or [
-                    { "date": (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'), "topic": "Arrays & Hashing", "problems_solved": 3, "time_spent": 45 },
-                    { "date": (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d'), "topic": "Two Pointers", "problems_solved": 2, "time_spent": 30 },
-                    { "date": (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d'), "topic": "Binary Search", "problems_solved": 4, "time_spent": 60 }
-                ]
+                "original_latex": original_latex,
+                "optimized_latex": optimized_latex,
+                "original_score": original_score,
+                "new_score": new_score
             }
         })
     except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
+@app.route("/api/progress", methods=["GET"])
+def get_progress_api():
+    """Get user progress analytics"""
+    user_id = request.args.get("user_id", "default_user")
+    
+    try:
+        from maang_agent.memory_persistence import get_memory_manager
+        memory = get_memory_manager()
+        
+        mastery = memory.get_problem_mastery(user_id)
+        solved_problems = len([m for m in mastery if m.get('optimal_solution_found')]) if mastery else 0
+        total_problems = 350
+        
+        # Simple AI recommendations stub
+        recommendations = [
+            "Focus on Dynamic Programming",
+            "Review Graph Algorithms",
+            "Solve 2 problems daily"
+        ]
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "overall_mastery": min(100, (solved_problems / max(1, total_problems)) * 100),
+                "problems_solved": solved_problems,
+                "total_problems": total_problems,
+                "recommendations": recommendations,
+                "mock_interview_stats": {
+                    "sessions_completed": 0,
+                    "avg_score": 0
+                }
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
-import sys
-# Add project root to path to allow importing mcp_server
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-try:
-    from mcp_server.server import leetcode_stats, leetcode_problems, leetcode_all_solved
-except ImportError:
-    # Fallback or mock if import fails (e.g. missing dependencies)
-    print("Could not import mcp_server.server. using mocks.")
-    def leetcode_stats(username): return {}
-    def leetcode_problems(tag, limit): return {}
-    def leetcode_all_solved(username): return {}
 
 @app.route("/api/roadmap/leetcode", methods=["GET"])
 def get_leetcode_roadmap():
@@ -1832,6 +2028,292 @@ def sync_stats():
     except Exception as e:
         print(f"Error syncing stats: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/export/excel', methods=['GET'])
+def export_to_excel():
+    """Export all database tables to Excel format"""
+    import sqlite3
+    from datetime import datetime
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    from flask import send_file
+    
+    try:
+        DB_PATH = os.getenv("SQLITE_PATH", "./memory.db")
+        
+        # Check if database exists
+        if not os.path.exists(DB_PATH):
+            return jsonify({"success": False, "error": "Database not found"}), 404
+        
+        # Connect to database
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Get all tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        tables = [row[0] for row in cursor.fetchall()]
+        
+        if not tables:
+            conn.close()
+            return jsonify({"success": False, "error": "No tables found"}), 404
+        
+        # Create workbook
+        workbook = Workbook()
+        if "Sheet" in workbook.sheetnames:
+            workbook.remove(workbook["Sheet"])
+        
+        # Style definitions
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        total_records = 0
+        
+        # Export each table
+        for table_name in tables:
+            try:
+                # Get table data
+                cursor.execute(f"SELECT * FROM {table_name}")
+                rows = cursor.fetchall()
+                
+                # Get column names
+                cursor.execute(f"PRAGMA table_info({table_name})")
+                columns = [col[1] for col in cursor.fetchall()]
+                
+                # Create sheet (limit name to 31 chars for Excel)
+                sheet = workbook.create_sheet(title=table_name[:31])
+                
+                # Write headers
+                for col_idx, column_name in enumerate(columns, 1):
+                    cell = sheet.cell(row=1, column=col_idx, value=column_name)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = header_alignment
+                    cell.border = border
+                
+                # Write data
+                for row_idx, row_data in enumerate(rows, 2):
+                    for col_idx, value in enumerate(row_data, 1):
+                        cell = sheet.cell(row=row_idx, column=col_idx, value=value)
+                        cell.border = border
+                        cell.alignment = Alignment(vertical="top", wrap_text=True)
+                
+                # Auto-adjust column widths
+                for col_idx, column_name in enumerate(columns, 1):
+                    max_length = len(column_name)
+                    for row_idx in range(2, min(len(rows) + 2, 100)):
+                        cell_value = sheet.cell(row=row_idx, column=col_idx).value
+                        if cell_value:
+                            max_length = max(max_length, len(str(cell_value)))
+                    adjusted_width = min(max_length + 2, 50)
+                    sheet.column_dimensions[get_column_letter(col_idx)].width = adjusted_width
+                
+                # Freeze header row
+                sheet.freeze_panes = "A2"
+                
+                total_records += len(rows)
+                
+            except Exception as e:
+                print(f"Error exporting table {table_name}: {e}")
+                continue
+        
+        # Create summary sheet
+        summary_sheet = workbook.create_sheet(title="📊 Summary", index=0)
+        summary_sheet.column_dimensions['A'].width = 30
+        summary_sheet.column_dimensions['B'].width = 15
+        
+        summary_sheet['A1'] = "MAANG Tracker - Database Export Summary"
+        summary_sheet['A1'].font = Font(bold=True, size=14, color="4472C4")
+        summary_sheet.merge_cells('A1:B1')
+        
+        summary_sheet['A3'] = "Export Date:"
+        summary_sheet['B3'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        summary_sheet['A4'] = "Database Path:"
+        summary_sheet['B4'] = DB_PATH
+        summary_sheet['A5'] = "Total Tables:"
+        summary_sheet['B5'] = len(tables)
+        summary_sheet['A6'] = "Total Records:"
+        summary_sheet['B6'] = total_records
+        
+        summary_sheet['A8'] = "Table Name"
+        summary_sheet['B8'] = "Record Count"
+        summary_sheet['A8'].font = Font(bold=True)
+        summary_sheet['B8'].font = Font(bold=True)
+        
+        row = 9
+        for table_name in tables:
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            count = cursor.fetchone()[0]
+            summary_sheet[f'A{row}'] = table_name
+            summary_sheet[f'B{row}'] = count
+            row += 1
+        
+        conn.close()
+        
+        # Save to BytesIO
+        output = BytesIO()
+        workbook.save(output)
+        output.seek(0)
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"maang_tracker_export_{timestamp}.xlsx"
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        print(f"Error exporting to Excel: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ===== LEETCODE SESSION MANAGEMENT =====
+
+@app.route("/api/leetcode/session", methods=["POST"])
+def save_leetcode_session():
+    """Save LeetCode session credentials"""
+    try:
+        from services.leetcode_session import LeetCodeSessionManager
+        
+        data = request.json
+        username = data.get("username")
+        session_id = data.get("session_id")
+        
+        if not username or not session_id:
+            return jsonify({"success": False, "error": "Username and session ID required"}), 400
+        
+        manager = LeetCodeSessionManager()
+        manager.save_session(username, session_id)
+        
+        return jsonify({
+            "success": True,
+            "message": "LeetCode session saved successfully"
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/leetcode/session", methods=["GET"])
+def get_leetcode_session():
+    """Get saved LeetCode session (without exposing session_id)"""
+    try:
+        from services.leetcode_session import LeetCodeSessionManager
+        
+        manager = LeetCodeSessionManager()
+        session = manager.get_session()
+        
+        if session:
+            return jsonify({
+                "success": True,
+                "data": {
+                    "username": session.get("username"),
+                    "has_session": True,
+                    "saved_at": session.get("saved_at")
+                }
+            })
+        else:
+            return jsonify({
+                "success": True,
+                "data": {"has_session": False}
+            })
+            
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/leetcode/session", methods=["DELETE"])
+def delete_leetcode_session():
+    """Clear saved LeetCode session"""
+    try:
+        from services.leetcode_session import LeetCodeSessionManager
+        
+        manager = LeetCodeSessionManager()
+        manager.clear_session()
+        
+        return jsonify({
+            "success": True,
+            "message": "Session cleared successfully"
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/leetcode/stats", methods=["GET"])
+def get_leetcode_stats():
+    """Fetch LeetCode statistics using saved session"""
+    try:
+        from services.leetcode_session import LeetCodeSessionManager, fetch_leetcode_stats
+        
+        manager = LeetCodeSessionManager()
+        session = manager.get_session()
+        
+        if not session:
+            return jsonify({
+                "success": False,
+                "error": "No LeetCode session found. Please configure your session first."
+            }), 400
+        
+        username = session.get("username")
+        session_id = session.get("session_id")
+        
+        result = fetch_leetcode_stats(username, session_id)
+        
+        if result.get("success"):
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/leetcode/test-session", methods=["POST"])
+def test_leetcode_session():
+    """Test if provided session credentials are valid"""
+    try:
+        from services.leetcode_session import fetch_leetcode_stats
+        
+        data = request.json
+        username = data.get("username")
+        session_id = data.get("session_id")
+        
+        if not username or not session_id:
+            return jsonify({"success": False, "error": "Username and session ID required"}), 400
+        
+        result = fetch_leetcode_stats(username, session_id)
+        
+        if result.get("success"):
+            return jsonify({
+                "success": True,
+                "message": "Session is valid!",
+                "stats": result.get("data")
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": result.get("error", "Invalid session")
+            }), 400
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 if __name__ == "__main__":
     # Use SocketIO if available, otherwise use regular Flask app
